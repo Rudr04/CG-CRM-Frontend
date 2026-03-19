@@ -57,7 +57,7 @@ CRM.HEADER_ROW = 1;
 //  D  NAME        K  TEAM        R  REMARK_2    Y  CONVERTED
 //  E  NUMBER      L  STATUS      S  CONF_CB     Z  ATTENDANCE
 //  F  REGI_NO     M  RATING      T  CONFIRM     AA INTERACTION
-//  G  LOCATION    N  ACTION      U  JOIN_POLL
+//  G  LOCATION    N  CB_DATE      U  JOIN_POLL
 //
 CRM.COL = {
   CGILN:       0,
@@ -73,7 +73,7 @@ CRM.COL = {
   TEAM:       10,
   STATUS:     11,
   RATING:     12,
-  ACTION:     13,
+  CB_DATE:     13,
   REMARK:     14,
   TEAM_2:     15,
   STATUS_2:   16,
