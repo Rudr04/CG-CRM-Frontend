@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; background: #f0f2f5; overflow: hidden; }
+
+/* ── Header ── */
+.header { background: #075e54; color: #fff; padding: 10px 12px; display: flex; align-items: center; gap: 10px; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; background: #128c7e; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; flex-shrink: 0; border: 2px solid rgba(255,255,255,.25); }
+.hinfo { flex: 1; min-width: 0; }
+.hname { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hnum  { font-size: 11px; opacity: .75; }
+.hpill { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 12px; background: rgba(255,255,255,.2); white-space: nowrap; flex-shrink: 0; }
+
+/* ── Tags bar ── */
+.tags { background: #fff; border-bottom: 1px solid #e9edef; padding: 6px 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+.tag  { font-size: 10px; padding: 2px 8px; border-radius: 10px; background: #e9edef; color: #3b4a54; font-weight: 500; }
+.tag.p { background: #e3f2fd; color: #1565c0; }
+.tag.t { background: #fce4ec; color: #b71c1c; }
+
+/* ── Messages ── */
+.msgs { overflow-y: auto; padding: 10px 10px 4px; display: flex; flex-direction: column; gap: 2px; scroll-behavior: smooth; }
+.bubble { max-width: 82%; padding: 6px 9px 18px; border-radius: 8px; position: relative; word-break: break-word; font-size: 12.5px; line-height: 1.45; box-shadow: 0 1px 1px rgba(0,0,0,.1); }
+.bubble.in  { background: #fff; align-self: flex-start; border-top-left-radius: 2px; }
+.bubble.out { background: #dcf8c6; align-self: flex-end; border-top-right-radius: 2px; }
+.bubble.tpl { background: #e8f5e9; font-style: italic; color: #555; }
+.btime { position: absolute; bottom: 3px; right: 7px; font-size: 9.5px; color: #667781; white-space: nowrap; }
+.divider { text-align: center; font-size: 10px; color: #667781; background: rgba(0,0,0,.06); padding: 2px 10px; border-radius: 8px; align-self: center; margin: 5px 0; }
+.empty   { text-align: center; color: #aaa; font-size: 12px; padding: 40px 20px; }
+.spinner { text-align: center; color: #aaa; font-size: 12px; padding: 20px; }
+
+/* ── Status bar ── */
+.sbar { background: #fff; border-top: 1px solid #f0f2f5; border-bottom: 1px solid #f0f2f5; padding: 2px 12px; display: flex; justify-content: space-between; font-size: 10px; color: #667781; align-items: center; flex-shrink: 0; }
+.dot  { width: 6px; height: 6px; border-radius: 50%; background: #25d366; display: inline-block; margin-right: 3px; vertical-align: middle; }
+.dot.busy { background: #ffc107; animation: pulse .6s infinite alternate; }
+@keyframes pulse { to { opacity: .2; } }
+
+/* ── Input area ── */
+.iarea { background: #f0f2f5; padding: 8px 10px 6px; flex-shrink: 0; }
+.irow  { display: flex; gap: 6px; align-items: flex-end; background: #fff; border-radius: 22px; padding: 7px 8px 7px 14px; box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+#msgInput { flex: 1; border: none; outline: none; resize: none; font-size: 13px; font-family: inherit; max-height: 80px; min-height: 20px; background: transparent; line-height: 1.45; }
+.sbtn { width: 36px; height: 36px; border-radius: 50%; border: none; background: #075e54; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 15px; transition: background .15s; }
+.sbtn:hover { background: #128c7e; }
+.sbtn:disabled { background: #ccc; cursor: not-allowed; }
+
+/* ── Template section ── */
+.tgl { font-size: 11px; color: #075e54; cursor: pointer; padding: 5px 2px 2px; display: flex; align-items: center; gap: 4px; user-select: none; }
+.tpanel { display: none; margin-top: 5px; }
+.tpanel.open { display: block; }
+select, .tpanel input { width: 100%; border: 1px solid #dadce0; border-radius: 6px; padding: 6px 9px; font-size: 12px; background: #fff; outline: none; margin-bottom: 5px; }
+.tprev { font-size: 11px; color: #555; background: #fff; padding: 6px 9px; border-radius: 6px; border: 1px solid #e0e0e0; margin-bottom: 5px; min-height: 28px; max-height: 56px; overflow-y: auto; white-space: pre-wrap; display: none; }
+.tsend { width: 100%; padding: 8px; background: #25d366; border: none; border-radius: 6px; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
+.tsend:hover { background: #1da851; }
+
+/* ── Status update ── */
+.supd { display: flex; gap: 5px; align-items: center; margin-top: 5px; }
+.supd select { margin: 0; flex: 1; }
+.supd button { padding: 6px 10px; font-size: 11px; background: #1a73e8; color: #fff; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.supd button:hover { background: #1557b0; }
+
+/* ── Toast ── */
+.toast { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; font-size: 11px; padding: 6px 14px; border-radius: 16px; pointer-events: none; opacity: 0; transition: opacity .25s; z-index: 99; white-space: nowrap; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+
+<?
+  // ── Server-side template variables ──
+  var initials = (lead.name || '?').trim().split(' ').map(function(w) { return (w[0] || ''); }).join('').toUpperCase().substring(0, 2) || '?';
+  // Safely embed as JSON — escape HTML-breaking chars
+  var leadJson = JSON.stringify(lead).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
+?>
+
+<body style="display:flex;flex-direction:column;height:100vh;">
+
+<!-- Header -->
+<div class="header">
+  <div class="avatar"><?= initials ?></div>
+  <div class="hinfo">
+    <div class="hname"><?= lead.name || 'Unknown' ?></div>
+    <div class="hnum"><?= lead.number ?></div>
+  </div>
+  <div class="hpill" id="statusPill"><?= lead.status || 'Lead' ?></div>
+</div>
+
+<!-- Tags -->
+<div class="tags">
+  <span class="tag p">📦 <?= lead.product || 'CGI' ?></span>
+  <span class="tag t">👤 <?= lead.team || 'Unassigned' ?></span>
+  <? if (lead.remark) { ?>
+    <span class="tag" title="<?= lead.remark ?>">💬 <?= lead.remark.length > 28 ? lead.remark.substring(0, 28) + '...' : lead.remark ?></span>
+  <? } ?>
+</div>
+
+<!-- Messages -->
+<div class="msgs" id="msgs" style="flex:1;min-height:0;">
+  <div class="spinner" id="spinner">Loading messages...</div>
+</div>
+
+<!-- Status bar -->
+<div class="sbar">
+  <span><span class="dot" id="dot"></span><span id="pollLbl">Connecting...</span></span>
+  <span id="msgCount"></span>
+</div>
+
+<!-- Input area -->
+<div class="iarea">
+  <div class="irow">
+    <textarea id="msgInput" rows="1" placeholder="Type a message..."></textarea>
+    <button class="sbtn" id="sendBtn" title="Send (Ctrl+Enter)">&#9658;</button>
+  </div>
+  <div class="tgl" id="tglBtn">&#9654; Use Template</div>
+  <div class="tpanel" id="tpanel">
+    <select id="tplSel" onchange="onTplChange()"><option value="">— Loading templates... —</option></select>
+    <div class="tprev" id="tprev"></div>
+    <div id="tparams"></div>
+    <button class="tsend" onclick="sendTpl()">📨 Send Template</button>
+  </div>
+  <div class="supd">
+    <select id="statusSel">
+      <option value="">— Update Status —</option>
+      <? for (var i = 0; i < statuses.length; i++) { ?>
+        <option><?= statuses[i] ?></option>
+      <? } ?>
+    </select>
+    <button onclick="updStatus()">Update</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var LEAD     = <?!= leadJson ?>;
+var POLL_MS  = <?= pollMs ?>;
+var _polling = null;
+var _tpls    = [];
+var _seenIds = {};
+var _firstLoad = true;
+
+/* ── Utilities ── */
+function _esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function _fmt(ts) {
+  if (!ts) return '';
+  var d = new Date(typeof ts === 'number' ? ts * 1000 : ts);
+  if (isNaN(d)) return '';
+  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+function _date(ts) {
+  if (!ts) return '';
+  var d = new Date(typeof ts === 'number' ? ts * 1000 : ts);
+  if (isNaN(d)) return '';
+  var t = new Date(), y = new Date(t); y.setDate(t.getDate() - 1);
+  if (d.toDateString() === t.toDateString()) return 'Today';
+  if (d.toDateString() === y.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function toast(msg, ms) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, ms || 2500);
+}
+function setPoll(state) {
+  var dot = document.getElementById('dot'), lbl = document.getElementById('pollLbl');
+  if (state === 'busy')  { dot.className = 'dot busy'; lbl.textContent = 'Refreshing\u2026'; }
+  else if (state === 'ok') { dot.className = 'dot'; dot.style.background = '#25d366'; lbl.textContent = 'Live'; }
+  else { dot.className = 'dot'; dot.style.background = '#f44336'; lbl.textContent = 'Error \u2014 retrying\u2026'; }
+}
+
+/* ── Render messages ── */
+function renderMsgs(messages) {
+  var wrap = document.getElementById('msgs');
+  var spinner = document.getElementById('spinner');
+  if (spinner) spinner.remove();
+
+  if (!messages.length) {
+    if (_firstLoad) wrap.innerHTML = '<div class="empty">No messages yet.<br>Start a conversation below.</div>';
+    _firstLoad = false;
+    return;
+  }
+
+  var hasNew = false;
+  messages.forEach(function(m) {
+    var key = m.id || (m.direction + '_' + m.timestamp);
+    if (!_seenIds[key]) { hasNew = true; _seenIds[key] = true; }
+  });
+  if (!hasNew && !_firstLoad) return;
+  _firstLoad = false;
+
+  var atBottom = wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight < 60;
+
+  wrap.innerHTML = '';
+  var lastDate = '';
+
+  messages.forEach(function(m) {
+    var ds = _date(m.timestamp);
+    if (ds && ds !== lastDate) {
+      var dv = document.createElement('div');
+      dv.className = 'divider'; dv.textContent = ds;
+      wrap.appendChild(dv);
+      lastDate = ds;
+    }
+    var b = document.createElement('div');
+    b.className = 'bubble ' + m.direction + (m.type === 'template' ? ' tpl' : '');
+    var txt = m.text ? _esc(m.text).replace(/\n/g, '<br>') : ('<em style="color:#bbb">[' + _esc(m.type) + ']</em>');
+    b.innerHTML = txt + '<span class="btime">' + _fmt(m.timestamp) + (m.direction === 'out' ? ' \u2713' : '') + '</span>';
+    wrap.appendChild(b);
+  });
+
+  document.getElementById('msgCount').textContent = messages.length + ' msgs';
+  if (atBottom || messages[messages.length - 1].direction === 'out') wrap.scrollTop = wrap.scrollHeight;
+}
+
+/* ── Poll ── */
+function doPoll() {
+  setPoll('busy');
+  google.script.run
+    .withSuccessHandler(function(r) {
+      setPoll(r && r.ok ? 'ok' : 'err');
+      if (r && r.ok) renderMsgs(r.messages || []);
+    })
+    .withFailureHandler(function(e) { setPoll('err'); console.error(e); })
+    .fetchWatiMessages(LEAD.number);
+}
+
+/* ── Send message ── */
+function sendMsg() {
+  var inp  = document.getElementById('msgInput');
+  var text = inp.value.trim();
+  if (!text) return;
+  inp.value = ''; inp.style.height = 'auto';
+  document.getElementById('sendBtn').disabled = true;
+
+  var wrap = document.getElementById('msgs');
+  var b = document.createElement('div');
+  b.className = 'bubble out optimistic';
+  b.innerHTML = _esc(text).replace(/\n/g, '<br>') + '<span class="btime">Sending\u2026</span>';
+  wrap.appendChild(b); wrap.scrollTop = wrap.scrollHeight;
+
+  google.script.run
+    .withSuccessHandler(function(r) {
+      document.getElementById('sendBtn').disabled = false;
+      if (r && r.ok) {
+        b.querySelector('.btime').textContent = 'Sent \u2713';
+        b.classList.remove('optimistic');
+      } else {
+        toast('\u274C ' + ((r && r.error) || 'Send failed'));
+        b.style.opacity = '.4';
+      }
+    })
+    .withFailureHandler(function(e) {
+      document.getElementById('sendBtn').disabled = false;
+      toast('\u274C ' + e.message);
+      b.style.opacity = '.4';
+    })
+    .sendWatiMessage(LEAD.number, text);
+}
+
+/* ── Auto-resize textarea ── */
+document.getElementById('msgInput').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 80) + 'px';
+});
+document.getElementById('msgInput').addEventListener('keydown', function(e) {
+  if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); sendMsg(); }
+});
+document.getElementById('sendBtn').addEventListener('click', sendMsg);
+
+/* ── Templates ── */
+document.getElementById('tglBtn').addEventListener('click', function() {
+  var p = document.getElementById('tpanel'), open = p.classList.toggle('open');
+  this.textContent = (open ? '\u25BC' : '\u25BA') + ' Use Template';
+  if (open && !_tpls.length) loadTpls();
+});
+
+function loadTpls() {
+  document.getElementById('tplSel').innerHTML = '<option value="">\u2014 Loading\u2026 \u2014</option>';
+  google.script.run
+    .withSuccessHandler(function(r) {
+      _tpls = r.templates || [];
+      var sel = document.getElementById('tplSel');
+      sel.innerHTML = '<option value="">\u2014 Select a template \u2014</option>';
+      _tpls.forEach(function(t, i) {
+        sel.innerHTML += '<option value="' + i + '">' + _esc(t.name) + '</option>';
+      });
+      if (!_tpls.length) toast('No approved templates found');
+    })
+    .withFailureHandler(function(e) { toast('Could not load templates: ' + e.message); })
+    .fetchWatiTemplates();
+}
+
+function onTplChange() {
+  var idx  = document.getElementById('tplSel').value;
+  var prev = document.getElementById('tprev');
+  var pp   = document.getElementById('tparams');
+  if (idx === '') { prev.style.display = 'none'; pp.innerHTML = ''; return; }
+  var t = _tpls[parseInt(idx)];
+  prev.textContent = t.body; prev.style.display = 'block';
+  pp.innerHTML = '';
+  for (var i = 1; i <= t.params; i++) {
+    pp.innerHTML += '<input type="text" placeholder="Parameter ' + i + '" id="tp' + i + '">';
+  }
+}
+
+function sendTpl() {
+  var idx = document.getElementById('tplSel').value;
+  if (idx === '') { toast('Select a template first'); return; }
+  var t = _tpls[parseInt(idx)], params = [];
+  for (var i = 1; i <= t.params; i++) {
+    var el = document.getElementById('tp' + i);
+    var v  = el ? el.value.trim() : '';
+    if (!v) { toast('Fill all ' + t.params + ' parameter(s)'); return; }
+    params.push({ name: String(i), value: v });
+  }
+  google.script.run
+    .withSuccessHandler(function(r) {
+      if (r && r.ok) {
+        toast('\u2705 Template sent');
+        var wrap = document.getElementById('msgs');
+        var b = document.createElement('div');
+        b.className = 'bubble out tpl';
+        b.innerHTML = '[Template: ' + _esc(t.name) + '] <span class="btime">Sent \u2713</span>';
+        wrap.appendChild(b); wrap.scrollTop = wrap.scrollHeight;
+      } else {
+        toast('\u274C ' + ((r && r.error) || 'Template send failed'));
+      }
+    })
+    .withFailureHandler(function(e) { toast('\u274C ' + e.message); })
+    .sendWatiTemplate(LEAD.number, t.name, params);
+}
+
+/* ── Status update ── */
+function updStatus() {
+  var sel = document.getElementById('statusSel'), v = sel.value;
+  if (!v) { toast('Select a status first'); return; }
+  google.script.run
+    .withSuccessHandler(function(r) {
+      if (r && r.ok) {
+        document.getElementById('statusPill').textContent = v;
+        toast('\u2705 Status \u2192 ' + v);
+        sel.value = '';
+      } else {
+        toast('\u274C ' + ((r && r.error) || 'Update failed'));
+      }
+    })
+    .withFailureHandler(function(e) { toast('\u274C ' + e.message); })
+    .updateLeadStatusFromChat(LEAD.row, v, '');
+}
+
+/* ── Start polling ── */
+doPoll();
+_polling = setInterval(doPoll, POLL_MS);
+window.addEventListener('unload', function() { clearInterval(_polling); });
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head><base target="_top">
+<style>
+  body { font-family: Arial, sans-serif; font-size: 12px; padding: 12px; }
+  h3 { margin: 0 0 12px; }
+  .count { color: #5f6368; font-size: 12px; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #1a73e8; color: #fff; padding: 7px 8px; text-align: left; font-size: 11px; }
+  td { padding: 6px 8px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+  tr:hover td { background: #f8f9fa; }
+  .log-cell { font-size: 11px; max-width: 180px; color: #5f6368; }
+  .status-cell { font-size: 11px; }
+</style>
+</head>
+<body>
+  <h3>📊 Recent Call Log</h3>
+  <div class="count">Showing last <?= called.length ?> called leads</div>
+  <table>
+    <tr><th>Name</th><th>Number</th><th>Team</th><th>Status</th><th>Call History</th></tr>
+    <? if (called.length === 0) { ?>
+      <tr><td colspan="5" style="text-align:center;color:#9e9e9e;padding:20px">No calls logged yet</td></tr>
+    <? } else { ?>
+      <? for (var i = 0; i < called.length; i++) { var r = called[i]; ?>
+        <tr>
+          <td><?= (r[COL.NAME]   || '') ?></td>
+          <td style="font-size:12px"><?= (r[COL.NUMBER] || '') ?></td>
+          <td><?= (r[COL.TEAM]   || '') ?></td>
+          <td class="status-cell"><?= (r[COL.STATUS] || '') ?></td>
+          <td class="log-cell"><?!= (r[COL.ACTION] || '').toString().replace(/\n/g, '<br>') ?></td>
+        </tr>
+      <? } ?>
+    <? } ?>
+  </table>
+</body>
+</html>

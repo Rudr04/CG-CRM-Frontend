@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head><base target="_top">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 13px; padding: 16px; background: #f8f9fa; }
+  h3 { margin: 0 0 4px; color: #202124; }
+  .st { font-size: 12px; padding: 8px 10px; border-radius: 4px; margin-bottom: 12px; }
+  .st.set     { background: #e6f4ea; color: #137333; }
+  .st.not-set { background: #fce8e6; color: #c5221f; }
+  label { display: block; font-weight: 600; margin: 12px 0 4px; }
+  input { width: 100%; border: 1px solid #dadce0; border-radius: 4px; padding: 9px 10px; font-size: 13px; font-family: monospace; }
+  input:focus { outline: none; border-color: #1a73e8; }
+  .note { font-size: 11px; color: #5f6368; margin-top: 6px; line-height: 1.5; }
+  .btn { width: 100%; padding: 11px; background: #1a73e8; color: #fff; border: none; border-radius: 5px;
+         font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px; }
+  .btn:hover { background: #1557b0; }
+  .ok  { color: #137333; background: #e6f4ea; border-radius: 4px; padding: 8px; margin-top: 10px; font-size: 12px; display: none; }
+  .err { color: #c5221f; background: #fce8e6; border-radius: 4px; padding: 8px; margin-top: 10px; font-size: 12px; display: none; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 16px 0; }
+</style>
+</head>
+<body>
+  <h3>🔑 Smartflo Token Setup</h3>
+  <div class="st <?= hasToken ? 'set' : 'not-set' ?>">
+    <?= hasToken ? '✅ Token is configured' : '⚠️ Token not set — calls will fail' ?>
+  </div>
+
+  <label>Smartflo Static Token</label>
+  <input id="token" type="text" placeholder="Paste your token here">
+  <div class="note">
+    Smartflo portal → API Connect → API Tokens → copy your token.<br>
+    Stored in Script Properties. Not visible after saving.
+  </div>
+
+  <button class="btn" onclick="save()">💾 Save Token</button>
+  <div class="ok" id="ok"></div>
+  <div class="err" id="err"></div>
+
+  <hr>
+  <div class="note">
+    <b>Call flow:</b> Agent's softphone rings → agent answers → Smartflo dials lead.<br><br>
+    <b>Required:</b> Agent logged into Smartflo softphone/app with VPN active.<br><br>
+    <b>Agent_Config sheet:</b> Column C = Smartflo extension ID (e.g. 0607296220002).
+  </div>
+
+<script>
+  function save() {
+    var token = document.getElementById('token').value.trim();
+    if (!token) { show('err', 'Token cannot be empty.'); return; }
+    google.script.run
+      .withSuccessHandler(function() { show('ok', '\u2705 Token saved successfully.'); })
+      .withFailureHandler(function(e) { show('err', 'Error: ' + e.message); })
+      .saveSmartfloToken(token);
+  }
+  function show(id, msg) {
+    ['ok','err'].forEach(function(i) {
+      document.getElementById(i).style.display = i === id ? 'block' : 'none';
+      document.getElementById(i).textContent   = i === id ? msg : '';
+    });
+  }
+</script>
+</body>
+</html>

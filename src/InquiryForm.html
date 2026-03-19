@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8f9fa; padding: 20px; overflow: visible; }
+
+    .form-section { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.1); overflow: visible; }
+    .section-title { font-size: 14px; font-weight: 600; color: #202124; margin-bottom: 16px; text-transform: uppercase; letter-spacing: .5px; }
+
+    .form-row       { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; overflow: visible; }
+    .form-row.full  { grid-template-columns: 1fr; }
+    .form-row.tri   { grid-template-columns: 1fr 1fr 1fr; }
+    .form-group     { display: flex; flex-direction: column; overflow: visible; }
+
+    label        { font-size: 12px; font-weight: 500; color: #5f6368; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .3px; }
+    label .req   { color: #d33427; margin-left: 2px; }
+
+    input[type="text"], input[type="email"], select, textarea {
+      padding: 10px 12px; border: 1px solid #dadce0; border-radius: 4px;
+      font-size: 13px; font-family: inherit; transition: border-color .2s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: #4285f4; box-shadow: 0 0 0 3px rgba(66,133,244,.1);
+    }
+    textarea { resize: vertical; min-height: 100px; }
+
+    /* ── Phone Input with Country Code ── */
+    .phone-wrap { display: flex; gap: 8px; overflow: visible; }
+    .cc-wrap { position: relative; flex: 0 0 80px; overflow: visible; }
+    .cc-btn {
+      width: 100%; padding: 8px 10px; border: 1px solid #dadce0; border-radius: 4px;
+      font-size: 13px; background: #fff; color: #202124; cursor: pointer; text-align: left;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .cc-btn:hover { border-color: #4285f4; }
+    .cc-btn img { width: 18px; height: 13px; object-fit: cover; border-radius: 2px; }
+    .cc-btn .arrow { margin-left: auto; color: #5f6368; font-size: 8px; }
+    .cc-menu {
+      display: none; position: absolute; top: 100%; left: 0; 
+      min-width: 200px; width: 200px; background: #fff;
+      border: 1px solid #dadce0; border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.15); z-index: 9999; max-height: 280px; overflow-y: auto;
+    }
+    .cc-menu.show { display: block; }
+    .cc-search {
+      position: sticky; top: 0; background: #fff; padding: 8px;
+      border-bottom: 1px solid #e8eaed;
+    }
+    .cc-search input {
+      width: 100%; padding: 8px 10px; border: 1px solid #dadce0; border-radius: 4px;
+      font-size: 12px; box-sizing: border-box;
+    }
+    .cc-divider {
+      padding: 6px 12px; font-size: 10px; font-weight: 600; color: #5f6368;
+      background: #f8f9fa; text-transform: uppercase; letter-spacing: .5px;
+      border-top: 1px solid #e8eaed; border-bottom: 1px solid #e8eaed;
+    }
+    .cc-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer;
+      white-space: nowrap;
+    }
+    .cc-item:hover { background: #e8f0fe; }
+    .cc-item img { width: 24px; height: 16px; object-fit: cover; border-radius: 2px; flex-shrink: 0; }
+    .cc-item .name { flex: 1; font-size: 13px; color: #202124; overflow: hidden; text-overflow: ellipsis; }
+    .cc-item .code { font-size: 12px; color: #5f6368; font-weight: 500; flex-shrink: 0; }
+    .phone-input { flex: 1; }
+
+    /* ── Product multi-select dropdown ── */
+    .pd-wrap { position: relative; }
+    .pd-btn  { 
+      width: 100%; padding: 10px 12px; border: 1px solid #dadce0; border-radius: 4px;
+      font-size: 13px; background: #fff; color: #202124; cursor: pointer; text-align: left;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pd-btn:hover { border-color: #4285f4; }
+    .pd-btn.has-sel { color: #1f73e6; }
+    .pd-menu { display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff;
+               border: 1px solid #dadce0; border-top: none; border-radius: 0 0 4px 4px;
+               box-shadow: 0 4px 8px rgba(0,0,0,.1); z-index: 1000; max-height: 200px; overflow-y: auto; }
+    .pd-menu.show { display: block; }
+    .pd-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; }
+    .pd-item:hover { background: #f0f0f0; }
+    .pd-item input { width: 16px; height: 16px; accent-color: #1f73e6; flex-shrink: 0; margin: 0; }
+    .pd-item label { margin: 0; font-size: 13px; text-transform: none; font-weight: 400; color: #202124; letter-spacing: 0; cursor: pointer; flex: 1; }
+
+    /* ── Buttons ── */
+    .btn-group { display: flex; gap: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e8eaed; }
+    .btn       { flex: 1; padding: 10px 24px; border: none; border-radius: 4px; font-size: 13px; font-weight: 500; cursor: pointer; text-transform: uppercase; letter-spacing: .5px; }
+    .btn-sub   { background: #1f73e6; color: #fff; }
+    .btn-sub:hover { background: #1765cc; }
+    .btn-sub:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-clr   { background: #f3f3f3; color: #202124; }
+    .btn-clr:hover { background: #e8e8e8; }
+
+    .error { color: #d33427; font-size: 12px; margin-top: 4px; display: none; }
+    .error.show { display: block; }
+    .loading { display: none; text-align: center; padding: 20px; color: #5f6368; font-size: 13px; }
+    .loading.show { display: block; }
+    .spin { display: inline-block; width: 16px; height: 16px; border: 2px solid #e8eaed;
+            border-top-color: #1f73e6; border-radius: 50%; animation: sp .6s linear infinite; margin-right: 8px; }
+    @keyframes sp { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <form id="frm">
+    <div class="form-section">
+      <div class="section-title">Primary Details</div>
+
+      <div class="form-row tri">
+        <div class="form-group">
+          <label>Name <span class="req">*</span></label>
+          <input type="text" id="name" placeholder="Full name" />
+          <div class="error" id="nameErr"></div>
+        </div>
+        <div class="form-group">
+          <label>WhatsApp No <span class="req">*</span></label>
+          <div class="phone-wrap">
+            <div class="cc-wrap">
+              <button type="button" class="cc-btn" id="ccBtn">
+                <img id="ccFlag" src="https://flagcdn.com/w40/in.png" alt="flag" />
+                <span id="ccCode">+91</span>
+                <span class="arrow">▼</span>
+              </button>
+              <div class="cc-menu" id="ccMenu">
+                <div class="cc-search">
+                  <input type="text" id="ccSearch" placeholder="Search country..." />
+                </div>
+                <div id="ccList"></div>
+              </div>
+            </div>
+            <input type="text" id="phone" class="phone-input" placeholder="Mobile number" />
+          </div>
+          <input type="hidden" id="countryCode" value="+91" />
+          <div class="error" id="phoneErr"></div>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="email" placeholder="Email address" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Product <span class="req">*</span></label>
+          <div class="pd-wrap">
+            <button type="button" class="pd-btn" id="pdBtn">Select Products ▼</button>
+            <div class="pd-menu" id="pdMenu"></div>
+          </div>
+          <div class="error" id="prodErr"></div>
+        </div>
+        <div class="form-group">
+          <label>Agent <span class="req">*</span></label>
+          <select id="agent"><option value="">Select Agent</option></select>
+          <div class="error" id="agentErr"></div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Source <span class="req">*</span></label>
+          <select id="source"><option value="">Select Source</option></select>
+          <div class="error" id="srcErr"></div>
+        </div>
+        <div class="form-group">
+          <label>State</label>
+          <input type="text" id="state" placeholder="State" />
+        </div>
+      </div>
+
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Remarks</label>
+          <textarea id="remarks" placeholder="Additional remarks or notes..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="loading" id="loading"><span class="spin"></span> Submitting inquiry...</div>
+      <div class="btn-group">
+        <button type="submit" class="btn btn-sub" id="subBtn">➕ Add Inquiry</button>
+        <button type="button" class="btn btn-clr" id="clrBtn">Clear</button>
+      </div>
+    </div>
+  </form>
+
+  <script>
+    /* ══════════════════════════════════════════════════════════════════
+       COUNTRY DATA — Pinned countries first, then all others alphabetically
+    ══════════════════════════════════════════════════════════════════ */
+    var PINNED_COUNTRIES = [
+      { name: 'India',      code: '+91',  iso: 'in' },
+      { name: 'USA',        code: '+1',   iso: 'us' },
+      { name: 'UAE',        code: '+971', iso: 'ae' },
+      { name: 'Singapore',  code: '+65',  iso: 'sg' },
+      { name: 'Canada',     code: '+1',   iso: 'ca' },
+      { name: 'UK',         code: '+44',  iso: 'gb' },
+      { name: 'Brazil',     code: '+55',  iso: 'br' }
+    ];
+
+    var ALL_COUNTRIES = [
+      { name: 'Afghanistan', code: '+93', iso: 'af' },
+      { name: 'Albania', code: '+355', iso: 'al' },
+      { name: 'Algeria', code: '+213', iso: 'dz' },
+      { name: 'Andorra', code: '+376', iso: 'ad' },
+      { name: 'Angola', code: '+244', iso: 'ao' },
+      { name: 'Argentina', code: '+54', iso: 'ar' },
+      { name: 'Armenia', code: '+374', iso: 'am' },
+      { name: 'Australia', code: '+61', iso: 'au' },
+      { name: 'Austria', code: '+43', iso: 'at' },
+      { name: 'Azerbaijan', code: '+994', iso: 'az' },
+      { name: 'Bahamas', code: '+1242', iso: 'bs' },
+      { name: 'Bahrain', code: '+973', iso: 'bh' },
+      { name: 'Bangladesh', code: '+880', iso: 'bd' },
+      { name: 'Barbados', code: '+1246', iso: 'bb' },
+      { name: 'Belarus', code: '+375', iso: 'by' },
+      { name: 'Belgium', code: '+32', iso: 'be' },
+      { name: 'Belize', code: '+501', iso: 'bz' },
+      { name: 'Benin', code: '+229', iso: 'bj' },
+      { name: 'Bhutan', code: '+975', iso: 'bt' },
+      { name: 'Bolivia', code: '+591', iso: 'bo' },
+      { name: 'Bosnia', code: '+387', iso: 'ba' },
+      { name: 'Botswana', code: '+267', iso: 'bw' },
+      { name: 'Brazil', code: '+55', iso: 'br' },
+      { name: 'Brunei', code: '+673', iso: 'bn' },
+      { name: 'Bulgaria', code: '+359', iso: 'bg' },
+      { name: 'Burkina Faso', code: '+226', iso: 'bf' },
+      { name: 'Burundi', code: '+257', iso: 'bi' },
+      { name: 'Cambodia', code: '+855', iso: 'kh' },
+      { name: 'Cameroon', code: '+237', iso: 'cm' },
+      { name: 'Canada', code: '+1', iso: 'ca' },
+      { name: 'Cape Verde', code: '+238', iso: 'cv' },
+      { name: 'Central African Republic', code: '+236', iso: 'cf' },
+      { name: 'Chad', code: '+235', iso: 'td' },
+      { name: 'Chile', code: '+56', iso: 'cl' },
+      { name: 'China', code: '+86', iso: 'cn' },
+      { name: 'Colombia', code: '+57', iso: 'co' },
+      { name: 'Comoros', code: '+269', iso: 'km' },
+      { name: 'Congo', code: '+242', iso: 'cg' },
+      { name: 'Costa Rica', code: '+506', iso: 'cr' },
+      { name: 'Croatia', code: '+385', iso: 'hr' },
+      { name: 'Cuba', code: '+53', iso: 'cu' },
+      { name: 'Cyprus', code: '+357', iso: 'cy' },
+      { name: 'Czech Republic', code: '+420', iso: 'cz' },
+      { name: 'Denmark', code: '+45', iso: 'dk' },
+      { name: 'Djibouti', code: '+253', iso: 'dj' },
+      { name: 'Dominica', code: '+1767', iso: 'dm' },
+      { name: 'Dominican Republic', code: '+1809', iso: 'do' },
+      { name: 'Ecuador', code: '+593', iso: 'ec' },
+      { name: 'Egypt', code: '+20', iso: 'eg' },
+      { name: 'El Salvador', code: '+503', iso: 'sv' },
+      { name: 'Equatorial Guinea', code: '+240', iso: 'gq' },
+      { name: 'Eritrea', code: '+291', iso: 'er' },
+      { name: 'Estonia', code: '+372', iso: 'ee' },
+      { name: 'Eswatini', code: '+268', iso: 'sz' },
+      { name: 'Ethiopia', code: '+251', iso: 'et' },
+      { name: 'Fiji', code: '+679', iso: 'fj' },
+      { name: 'Finland', code: '+358', iso: 'fi' },
+      { name: 'France', code: '+33', iso: 'fr' },
+      { name: 'Gabon', code: '+241', iso: 'ga' },
+      { name: 'Gambia', code: '+220', iso: 'gm' },
+      { name: 'Georgia', code: '+995', iso: 'ge' },
+      { name: 'Germany', code: '+49', iso: 'de' },
+      { name: 'Ghana', code: '+233', iso: 'gh' },
+      { name: 'Greece', code: '+30', iso: 'gr' },
+      { name: 'Grenada', code: '+1473', iso: 'gd' },
+      { name: 'Guatemala', code: '+502', iso: 'gt' },
+      { name: 'Guinea', code: '+224', iso: 'gn' },
+      { name: 'Guinea-Bissau', code: '+245', iso: 'gw' },
+      { name: 'Guyana', code: '+592', iso: 'gy' },
+      { name: 'Haiti', code: '+509', iso: 'ht' },
+      { name: 'Honduras', code: '+504', iso: 'hn' },
+      { name: 'Hong Kong', code: '+852', iso: 'hk' },
+      { name: 'Hungary', code: '+36', iso: 'hu' },
+      { name: 'Iceland', code: '+354', iso: 'is' },
+      { name: 'India', code: '+91', iso: 'in' },
+      { name: 'Indonesia', code: '+62', iso: 'id' },
+      { name: 'Iran', code: '+98', iso: 'ir' },
+      { name: 'Iraq', code: '+964', iso: 'iq' },
+      { name: 'Ireland', code: '+353', iso: 'ie' },
+      { name: 'Israel', code: '+972', iso: 'il' },
+      { name: 'Italy', code: '+39', iso: 'it' },
+      { name: 'Ivory Coast', code: '+225', iso: 'ci' },
+      { name: 'Jamaica', code: '+1876', iso: 'jm' },
+      { name: 'Japan', code: '+81', iso: 'jp' },
+      { name: 'Jordan', code: '+962', iso: 'jo' },
+      { name: 'Kazakhstan', code: '+7', iso: 'kz' },
+      { name: 'Kenya', code: '+254', iso: 'ke' },
+      { name: 'Kiribati', code: '+686', iso: 'ki' },
+      { name: 'Kuwait', code: '+965', iso: 'kw' },
+      { name: 'Kyrgyzstan', code: '+996', iso: 'kg' },
+      { name: 'Laos', code: '+856', iso: 'la' },
+      { name: 'Latvia', code: '+371', iso: 'lv' },
+      { name: 'Lebanon', code: '+961', iso: 'lb' },
+      { name: 'Lesotho', code: '+266', iso: 'ls' },
+      { name: 'Liberia', code: '+231', iso: 'lr' },
+      { name: 'Libya', code: '+218', iso: 'ly' },
+      { name: 'Liechtenstein', code: '+423', iso: 'li' },
+      { name: 'Lithuania', code: '+370', iso: 'lt' },
+      { name: 'Luxembourg', code: '+352', iso: 'lu' },
+      { name: 'Macau', code: '+853', iso: 'mo' },
+      { name: 'Madagascar', code: '+261', iso: 'mg' },
+      { name: 'Malawi', code: '+265', iso: 'mw' },
+      { name: 'Malaysia', code: '+60', iso: 'my' },
+      { name: 'Maldives', code: '+960', iso: 'mv' },
+      { name: 'Mali', code: '+223', iso: 'ml' },
+      { name: 'Malta', code: '+356', iso: 'mt' },
+      { name: 'Marshall Islands', code: '+692', iso: 'mh' },
+      { name: 'Mauritania', code: '+222', iso: 'mr' },
+      { name: 'Mauritius', code: '+230', iso: 'mu' },
+      { name: 'Mexico', code: '+52', iso: 'mx' },
+      { name: 'Micronesia', code: '+691', iso: 'fm' },
+      { name: 'Moldova', code: '+373', iso: 'md' },
+      { name: 'Monaco', code: '+377', iso: 'mc' },
+      { name: 'Mongolia', code: '+976', iso: 'mn' },
+      { name: 'Montenegro', code: '+382', iso: 'me' },
+      { name: 'Morocco', code: '+212', iso: 'ma' },
+      { name: 'Mozambique', code: '+258', iso: 'mz' },
+      { name: 'Myanmar', code: '+95', iso: 'mm' },
+      { name: 'Namibia', code: '+264', iso: 'na' },
+      { name: 'Nauru', code: '+674', iso: 'nr' },
+      { name: 'Nepal', code: '+977', iso: 'np' },
+      { name: 'Netherlands', code: '+31', iso: 'nl' },
+      { name: 'New Zealand', code: '+64', iso: 'nz' },
+      { name: 'Nicaragua', code: '+505', iso: 'ni' },
+      { name: 'Niger', code: '+227', iso: 'ne' },
+      { name: 'Nigeria', code: '+234', iso: 'ng' },
+      { name: 'North Korea', code: '+850', iso: 'kp' },
+      { name: 'North Macedonia', code: '+389', iso: 'mk' },
+      { name: 'Norway', code: '+47', iso: 'no' },
+      { name: 'Oman', code: '+968', iso: 'om' },
+      { name: 'Pakistan', code: '+92', iso: 'pk' },
+      { name: 'Palau', code: '+680', iso: 'pw' },
+      { name: 'Palestine', code: '+970', iso: 'ps' },
+      { name: 'Panama', code: '+507', iso: 'pa' },
+      { name: 'Papua New Guinea', code: '+675', iso: 'pg' },
+      { name: 'Paraguay', code: '+595', iso: 'py' },
+      { name: 'Peru', code: '+51', iso: 'pe' },
+      { name: 'Philippines', code: '+63', iso: 'ph' },
+      { name: 'Poland', code: '+48', iso: 'pl' },
+      { name: 'Portugal', code: '+351', iso: 'pt' },
+      { name: 'Qatar', code: '+974', iso: 'qa' },
+      { name: 'Romania', code: '+40', iso: 'ro' },
+      { name: 'Russia', code: '+7', iso: 'ru' },
+      { name: 'Rwanda', code: '+250', iso: 'rw' },
+      { name: 'Saint Kitts and Nevis', code: '+1869', iso: 'kn' },
+      { name: 'Saint Lucia', code: '+1758', iso: 'lc' },
+      { name: 'Saint Vincent', code: '+1784', iso: 'vc' },
+      { name: 'Samoa', code: '+685', iso: 'ws' },
+      { name: 'San Marino', code: '+378', iso: 'sm' },
+      { name: 'Sao Tome and Principe', code: '+239', iso: 'st' },
+      { name: 'Saudi Arabia', code: '+966', iso: 'sa' },
+      { name: 'Senegal', code: '+221', iso: 'sn' },
+      { name: 'Serbia', code: '+381', iso: 'rs' },
+      { name: 'Seychelles', code: '+248', iso: 'sc' },
+      { name: 'Sierra Leone', code: '+232', iso: 'sl' },
+      { name: 'Singapore', code: '+65', iso: 'sg' },
+      { name: 'Slovakia', code: '+421', iso: 'sk' },
+      { name: 'Slovenia', code: '+386', iso: 'si' },
+      { name: 'Solomon Islands', code: '+677', iso: 'sb' },
+      { name: 'Somalia', code: '+252', iso: 'so' },
+      { name: 'South Africa', code: '+27', iso: 'za' },
+      { name: 'South Korea', code: '+82', iso: 'kr' },
+      { name: 'South Sudan', code: '+211', iso: 'ss' },
+      { name: 'Spain', code: '+34', iso: 'es' },
+      { name: 'Sri Lanka', code: '+94', iso: 'lk' },
+      { name: 'Sudan', code: '+249', iso: 'sd' },
+      { name: 'Suriname', code: '+597', iso: 'sr' },
+      { name: 'Sweden', code: '+46', iso: 'se' },
+      { name: 'Switzerland', code: '+41', iso: 'ch' },
+      { name: 'Syria', code: '+963', iso: 'sy' },
+      { name: 'Taiwan', code: '+886', iso: 'tw' },
+      { name: 'Tajikistan', code: '+992', iso: 'tj' },
+      { name: 'Tanzania', code: '+255', iso: 'tz' },
+      { name: 'Thailand', code: '+66', iso: 'th' },
+      { name: 'Timor-Leste', code: '+670', iso: 'tl' },
+      { name: 'Togo', code: '+228', iso: 'tg' },
+      { name: 'Tonga', code: '+676', iso: 'to' },
+      { name: 'Trinidad and Tobago', code: '+1868', iso: 'tt' },
+      { name: 'Tunisia', code: '+216', iso: 'tn' },
+      { name: 'Turkey', code: '+90', iso: 'tr' },
+      { name: 'Turkmenistan', code: '+993', iso: 'tm' },
+      { name: 'Tuvalu', code: '+688', iso: 'tv' },
+      { name: 'Uganda', code: '+256', iso: 'ug' },
+      { name: 'Ukraine', code: '+380', iso: 'ua' },
+      { name: 'United Arab Emirates', code: '+971', iso: 'ae' },
+      { name: 'United Kingdom', code: '+44', iso: 'gb' },
+      { name: 'United States', code: '+1', iso: 'us' },
+      { name: 'Uruguay', code: '+598', iso: 'uy' },
+      { name: 'Uzbekistan', code: '+998', iso: 'uz' },
+      { name: 'Vanuatu', code: '+678', iso: 'vu' },
+      { name: 'Vatican City', code: '+379', iso: 'va' },
+      { name: 'Venezuela', code: '+58', iso: 've' },
+      { name: 'Vietnam', code: '+84', iso: 'vn' },
+      { name: 'Yemen', code: '+967', iso: 'ye' },
+      { name: 'Zambia', code: '+260', iso: 'zm' },
+      { name: 'Zimbabwe', code: '+263', iso: 'zw' }
+    ];
+
+    /* ══════════════════════════════════════════════════════════════════
+       INITIALIZATION
+    ══════════════════════════════════════════════════════════════════ */
+    document.addEventListener('DOMContentLoaded', function() {
+      initCountryCodeDropdown();
+      initProductDropdown();
+      loadDropdownOptions();
+    });
+
+    /* ── Country Code Dropdown ── */
+    function initCountryCodeDropdown() {
+      var ccBtn   = document.getElementById('ccBtn');
+      var ccMenu  = document.getElementById('ccMenu');
+      var ccList  = document.getElementById('ccList');
+      var ccSearch = document.getElementById('ccSearch');
+
+      // Build dropdown list
+      renderCountryList(ccList, '');
+
+      // Toggle dropdown
+      ccBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        ccMenu.classList.toggle('show');
+        if (ccMenu.classList.contains('show')) {
+          ccSearch.value = '';
+          ccSearch.focus();
+          renderCountryList(ccList, '');
+        }
+      });
+
+      // Search filter
+      ccSearch.addEventListener('input', function() {
+        renderCountryList(ccList, this.value.toLowerCase());
+      });
+
+      // Close on outside click
+      document.addEventListener('click', function(e) {
+        if (!e.target.closest('.cc-wrap')) ccMenu.classList.remove('show');
+      });
+
+      // Prevent menu close when clicking search
+      ccSearch.addEventListener('click', function(e) { e.stopPropagation(); });
+    }
+
+    function renderCountryList(container, filter) {
+      container.innerHTML = '';
+
+      // Filter function
+      var matchesFilter = function(c) {
+        if (!filter) return true;
+        return c.name.toLowerCase().indexOf(filter) !== -1 || c.code.indexOf(filter) !== -1;
+      };
+
+      // Pinned section
+      var pinnedFiltered = PINNED_COUNTRIES.filter(matchesFilter);
+      if (pinnedFiltered.length > 0) {
+        var divPinned = document.createElement('div');
+        divPinned.className = 'cc-divider';
+        divPinned.textContent = '★ Quick Access';
+        container.appendChild(divPinned);
+        pinnedFiltered.forEach(function(c) { container.appendChild(createCountryItem(c)); });
+      }
+
+      // All countries section
+      var allFiltered = ALL_COUNTRIES.filter(matchesFilter);
+      if (allFiltered.length > 0) {
+        var divAll = document.createElement('div');
+        divAll.className = 'cc-divider';
+        divAll.textContent = 'All Countries';
+        container.appendChild(divAll);
+        allFiltered.forEach(function(c) { container.appendChild(createCountryItem(c)); });
+      }
+    }
+
+    function createCountryItem(country) {
+      var item = document.createElement('div');
+      item.className = 'cc-item';
+      item.innerHTML = '<img src="https://flagcdn.com/w40/' + country.iso + '.png" alt="' + country.name + '" />' +
+                       '<span class="name">' + country.name + '</span>' +
+                       '<span class="code">' + country.code + '</span>';
+      item.addEventListener('click', function() { selectCountry(country); });
+      return item;
+    }
+
+    function selectCountry(country) {
+      document.getElementById('ccFlag').src = 'https://flagcdn.com/w40/' + country.iso + '.png';
+      document.getElementById('ccCode').textContent = country.code;
+      document.getElementById('countryCode').value = country.code;
+      document.getElementById('ccMenu').classList.remove('show');
+      document.getElementById('phone').focus();
+    }
+
+    /* ── Product Dropdown ── */
+    function initProductDropdown() {
+      var pdBtn  = document.getElementById('pdBtn');
+      var pdMenu = document.getElementById('pdMenu');
+
+      pdBtn.addEventListener('click', function(e) { e.preventDefault(); pdMenu.classList.toggle('show'); });
+      document.addEventListener('click', function(e) { if (!e.target.closest('.pd-wrap')) pdMenu.classList.remove('show'); });
+    }
+
+    function loadDropdownOptions() {
+      google.script.run.withSuccessHandler(function(data) {
+        // Agents
+        var aSel = document.getElementById('agent');
+        data.agents.forEach(function(a) {
+          var o = document.createElement('option'); o.value = a; o.textContent = a; aSel.appendChild(o);
+        });
+
+        // Products (multi-checkbox)
+        var pdMenu = document.getElementById('pdMenu');
+        data.products.forEach(function(p) {
+          var w  = document.createElement('div'); w.className = 'pd-item';
+          var cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = p; cb.name = 'prod';
+          cb.id = 'p_' + p.replace(/\s/g, '_'); cb.addEventListener('change', updSel);
+          var lb = document.createElement('label'); lb.htmlFor = cb.id; lb.textContent = p;
+          w.appendChild(cb); w.appendChild(lb); pdMenu.appendChild(w);
+        });
+
+        // Sources
+        var sSel = document.getElementById('source');
+        data.sources.forEach(function(s) {
+          var o = document.createElement('option'); o.value = s; o.textContent = s; sSel.appendChild(o);
+        });
+      }).getDropdownOptions();
+    }
+
+    function updSel() {
+      var sel = Array.from(document.querySelectorAll('input[name=prod]:checked')).map(function(c) { return c.value; });
+      var btn = document.getElementById('pdBtn');
+      if (sel.length) {
+        btn.textContent = '\u2713 ' + sel.join(', ') + ' ▼';
+        btn.classList.add('has-sel');
+      } else {
+        btn.textContent = 'Select Products ▼';
+        btn.classList.remove('has-sel');
+      }
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       FORM SUBMISSION
+    ══════════════════════════════════════════════════════════════════ */
+    document.getElementById('frm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (!validate()) return;
+      document.getElementById('loading').classList.add('show');
+      document.getElementById('subBtn').disabled = true;
+
+      var countryCode = document.getElementById('countryCode').value;
+      var phoneNum = document.getElementById('phone').value.trim().replace(/\D/g, '');
+      var fullPhone = countryCode + phoneNum;
+
+      var fd = {
+        name:     document.getElementById('name').value.trim(),
+        phone:    fullPhone,
+        email:    document.getElementById('email').value.trim(),
+        state:    document.getElementById('state').value.trim(),
+        agent:    document.getElementById('agent').value,
+        products: Array.from(document.querySelectorAll('input[name=prod]:checked')).map(function(c) { return c.value; }).join(', '),
+        source:   document.getElementById('source').value,
+        remarks:  document.getElementById('remarks').value.trim()
+      };
+
+      google.script.run
+        .withSuccessHandler(function(r) {
+          document.getElementById('loading').classList.remove('show');
+          document.getElementById('subBtn').disabled = false;
+          if (r.success) {
+            google.script.run.showSuccessToast('\u2705 Inquiry added!');
+            resetForm();
+          } else {
+            google.script.run.showErrorToast('\u274C ' + r.message);
+          }
+        })
+        .withFailureHandler(function(err) {
+          document.getElementById('loading').classList.remove('show');
+          document.getElementById('subBtn').disabled = false;
+          google.script.run.showErrorToast('\u274C ' + err);
+        })
+        .submitInquiry(fd);
+    });
+
+    /* ── Clear Button ── */
+    document.getElementById('clrBtn').addEventListener('click', function(e) {
+      e.preventDefault();
+      resetForm();
+    });
+
+    function resetForm() {
+      document.getElementById('frm').reset();
+      updSel();
+      clrErr();
+      // Reset to default country (India)
+      document.getElementById('ccFlag').src = 'https://flagcdn.com/w40/in.png';
+      document.getElementById('ccCode').textContent = '+91';
+      document.getElementById('countryCode').value = '+91';
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       VALIDATION
+    ══════════════════════════════════════════════════════════════════ */
+    function validate() {
+      clrErr();
+      var ok = true;
+
+      if (!document.getElementById('name').value.trim()) {
+        showErr('nameErr', 'Name is required'); ok = false;
+      }
+
+      var ph = document.getElementById('phone').value.trim();
+      if (!ph) {
+        showErr('phoneErr', 'Phone is required'); ok = false;
+      } else {
+        var digits = ph.replace(/\D/g, '');
+        if (digits.length < 7 || digits.length > 15) {
+          showErr('phoneErr', 'Enter a valid phone number (7-15 digits)'); ok = false;
+        }
+      }
+
+      if (!document.getElementById('agent').value) {
+        showErr('agentErr', 'Agent is required'); ok = false;
+      }
+
+      if (!document.querySelectorAll('input[name=prod]:checked').length) {
+        showErr('prodErr', 'Select at least one product'); ok = false;
+      }
+
+      if (!document.getElementById('source').value) {
+        showErr('srcErr', 'Source is required'); ok = false;
+      }
+
+      return ok;
+    }
+
+    function showErr(id, msg) {
+      var el = document.getElementById(id);
+      el.textContent = msg;
+      el.classList.add('show');
+    }
+
+    function clrErr() {
+      document.querySelectorAll('.error').forEach(function(el) {
+        el.classList.remove('show');
+        el.textContent = '';
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head><base target="_top">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Google Sans', Arial, sans-serif; font-size: 13px; background: #f8f9fa; }
+  .card { background: #fff; border-radius: 8px; padding: 16px; margin: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .lbl { font-size: 11px; text-transform: uppercase; color: #5f6368; letter-spacing: .6px; margin-bottom: 8px; }
+  .lead-name   { font-size: 15px; font-weight: 700; color: #202124; }
+  .lead-number { font-size: 20px; font-weight: 800; color: #1a73e8; margin: 4px 0 6px; letter-spacing: 1px; }
+  .lead-meta   { font-size: 12px; color: #5f6368; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-right: 4px; }
+  .tag-s { background: #e8f0fe; color: #1a73e8; }
+  .tag-t { background: #fef3e2; color: #b06000; }
+  .tag-p { background: #e6f4ea; color: #137333; }
+  .agent-card { background: #f1f3f4; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
+  .agent-name { font-weight: 600; }
+  .agent-meta { font-size: 12px; color: #5f6368; margin-top: 2px; }
+  .warn { background: #fff3cd; color: #856404; border: 1px solid #ffc107; border-radius: 6px; padding: 10px; font-size: 12px; margin-bottom: 10px; }
+  .btn-call { width: 100%; padding: 13px; background: #1a73e8; color: #fff; border: none; border-radius: 6px;
+              font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 4px; letter-spacing: .3px; }
+  .btn-call:hover:not(:disabled) { background: #1557b0; }
+  .btn-call:disabled { background: #dadce0; color: #80868b; cursor: not-allowed; }
+  .status { border-radius: 6px; padding: 10px 12px; margin-top: 10px; font-size: 12px; display: none; }
+  .status.loading { background: #e8f0fe; color: #1a73e8; border: 1px solid #c5d9f8; }
+  .status.success { background: #e6f4ea; color: #137333; border: 1px solid #ceead6; }
+  .status.error   { background: #fce8e6; color: #c5221f; border: 1px solid #f5c6c2; }
+</style>
+</head>
+<body>
+
+  <!-- Lead Info -->
+  <div class="card">
+    <div class="lbl">Lead</div>
+    <div class="lead-name"><?= lead.name || 'Unknown' ?></div>
+    <div class="lead-number"><?!= formatDisplayNumber(lead.number) ?></div>
+    <div class="lead-meta">
+      <? if (lead.location) { ?>📍 <?= lead.location ?>&emsp;<? } ?>
+      <? if (lead.product) { ?>🏷 <?= lead.product ?><? } ?>
+    </div>
+    <div style="margin-top:8px">
+      <span class="tag tag-s"><?= lead.status || 'Lead' ?></span>
+      <span class="tag tag-t"><?= lead.team || 'Unassigned' ?></span>
+      <? if (lead.product) { ?><span class="tag tag-p"><?= lead.product ?></span><? } ?>
+    </div>
+  </div>
+
+  <!-- Agent + Call -->
+  <div class="card">
+    <div class="lbl">Calling As</div>
+
+    <? if (agent) { ?>
+      <div class="agent-card">
+        <div class="agent-name">👤 <?= agent.name ?></div>
+        <div class="agent-meta">📱 <?= agent.phone ?>&nbsp;&nbsp;🏷 <?= agent.team || '—' ?></div>
+      </div>
+    <? } else { ?>
+      <div class="warn">⚠️ Your email (<b><?= Session.getActiveUser().getEmail() ?></b>) is not in <b><?= configSheet ?></b>. Ask admin to add you.</div>
+    <? } ?>
+
+    <? if (!isConfigured) { ?>
+      <div class="warn">⚠️ Smartflo token not set. Use Admin → Smartflo Token Setup.</div>
+    <? } ?>
+
+    <button class="btn-call" id="callBtn" onclick="initiateCall()" <?= (!isConfigured || !agent) ? 'disabled' : '' ?>>
+      📞 &nbsp;Call <?= lead.name ? lead.name.split(' ')[0] : 'Lead' ?>
+    </button>
+    <div class="status" id="statusBox"></div>
+  </div>
+
+<script>
+  var ROW = <?= lead.rowIndex ?>;
+
+  function initiateCall() {
+    var btn = document.getElementById('callBtn');
+    btn.disabled = true;
+    showStatus('\u23F3 Connecting to Smartflo...', 'loading');
+
+    google.script.run
+      .withSuccessHandler(function(r) {
+        btn.disabled = false;
+        showStatus(r.success ? '\u2705 ' + r.message : '\u274C ' + r.message, r.success ? 'success' : 'error');
+      })
+      .withFailureHandler(function(e) {
+        btn.disabled = false;
+        showStatus('\u274C Script error: ' + e.message, 'error');
+      })
+      .triggerC2CCall(ROW);
+  }
+
+  function showStatus(msg, type) {
+    var box = document.getElementById('statusBox');
+    box.innerHTML = msg; box.className = 'status ' + type; box.style.display = 'block';
+  }
+</script>
+</body>
+</html>
