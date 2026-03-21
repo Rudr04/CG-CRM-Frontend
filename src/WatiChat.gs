@@ -8,6 +8,14 @@
 
 // ── Menu entry point ───────────────────────────────────────────
 
+
+// Add at top of WatiChat.gs
+var FLOW_BODY_TEXT = {
+  'MC Regi Form 23': 'માત્ર એક સ્ટેપ\nઆપનાં FREE રેજીસ્ટ્રેશન માટે\n\nNEXT LEVEL જ્યોતિષ શીખો\n\nરવિવાર, 15 FEB 2026\n\n🏛 અમદાવાદ ઓફલાઇન ક્લાસ સવારે 10:30\n💻 ઓનલાઇન ક્લાસ બપોરે 4:30\n\nમાસ્ટરક્લાસની અન્ય તમામ વિગતો આપનાં રેજીસ્ટર નંબર પર મળશે',
+  // Add more flows as needed:
+  // 'Another Flow Name': 'Body text here...',
+};
+
 function openChatSidebar() {
   var ui    = SpreadsheetApp.getUi();
   var sheet = getSheet(CRM.SHEETS.DSR);
@@ -18,6 +26,7 @@ function openChatSidebar() {
 
   var lead = getLeadData(sheet, row);
   if (!lead) return;
+  // Debug — check what's being passed to sidebar
 
   var tpl = HtmlService.createTemplateFromFile('ChatSidebar');
   tpl.lead    = lead;
@@ -25,9 +34,8 @@ function openChatSidebar() {
   tpl.statuses = CRM.STATUSES;
 
   var title = '\u{1F4AC} ' + (lead.name || lead.number);
-  ui.showSidebar(tpl.evaluate().setTitle(title).setWidth(400));
+  ui.showSidebar(tpl.evaluate().setTitle(title));
 }
-
 
 // ── WATI Configuration ─────────────────────────────────────────
 
@@ -44,11 +52,18 @@ function _watiCfg() {
 
 // ── Fetch Messages (called from sidebar polling) ───────────────
 
+// ── Flow config — add your flows here ──
+var FLOW_CONFIG = {
+  'MC Regi Form 23': 'માત્ર એક સ્ટેપ\nઆપનાં FREE રેજીસ્ટ્રેશન માટે\n\nNEXT LEVEL જ્યોતિષ શીખો\n\nરવિવાર, 15 FEB 2026\n\n🏛 અમદાવાદ ઓફલાઇન ક્લાસ સવારે 10:30\n💻 ઓનલાઇન ક્લાસ બપોરે 4:30\n\nમાસ્ટરક્લાસની અન્ય તમામ વિગતો આપનાં રેજીસ્ટર નંબર પર મળશે',
+  // Add more flows:
+  // 'Flow Name': 'Full body text here...',
+};
+
 function fetchWatiMessages(phoneNumber) {
   try {
     var cfg   = _watiCfg();
     var clean = phoneNumber.toString().replace(/\D/g, '');
-    var url   = cfg.base + cfg.tenant + '/api/v1/getMessages/' + clean + '?pageSize=50&pageIndex=0';
+    var url   = cfg.base + cfg.tenant + '/api/v1/getMessages/' + clean + '?pageSize=100&pageIndex=0';
 
     var resp = UrlFetchApp.fetch(url, {
       method: 'GET',
@@ -64,17 +79,34 @@ function fetchWatiMessages(phoneNumber) {
     var body = JSON.parse(resp.getContentText());
     var raw  = (body.messages && body.messages.items) ? body.messages.items : [];
 
+    console.info('[All body.messages]' + body.messages.items);
+    
     // WATI returns newest-first; reverse so oldest is at top
-    var messages = raw.reverse().map(function(m) {
-      return {
-        id:        m.id || m.whatsappMessageId || '',
-        text:      m.text || m.body || '',
-        timestamp: m.timestamp || m.created || '',
-        direction: m.owner ? 'out' : 'in',
-        type:      m.type || 'text',
-        status:    m.statusString || m.status || '',
-      };
-    });
+    var messages = raw.reverse()
+      .filter(function(m) {
+        return m.eventType === 'message' || m.eventType === 'broadcastMessage';
+      }).map(function(m) {
+        var isOutbound = !!m.owner || !!m.operaterName || !!m.operater || m.eventType == 'broadcastMessage';
+        var type = m.type || 'text';
+
+        // Media info for images/files
+        var mediaPath = m.data || null;
+        var mediaType = null;
+        if (type === 'image' || type === 'video' || type === 'document' || type === 'audio' || type === 'sticker') {
+          mediaType = type;
+        }
+
+        return {
+          id:        m.id || m.whatsappMessageId || '',
+          text:      FLOW_BODY_TEXT[m.text] || m.text || m.body || m.finalText || '',
+          timestamp: m.timestamp || m.created || '',
+          direction: isOutbound ? 'out' : 'in',
+          type:      type,
+          status:    m.statusString || m.status || '',
+          mediaPath: mediaPath,
+          mediaType: mediaType,
+        };
+      });
 
     return { ok: true, messages: messages };
   } catch (e) {
@@ -82,7 +114,6 @@ function fetchWatiMessages(phoneNumber) {
     return { ok: false, messages: [], error: e.message };
   }
 }
-
 
 // ── Send Free-Text Message ─────────────────────────────────────
 
@@ -202,6 +233,77 @@ function updateLeadStatusFromChat(rowIndex, newStatus, appendRemark) {
     return { ok: true };
   } catch (e) {
     console.error('[Chat] updateStatus: ' + e.message);
+    return { ok: false, error: e.message };
+  }
+}
+
+// ── Fetch media file as base64 ─────────────────────────────────
+
+function getWatiMedia(filePath) {
+  try {
+    var cfg = _watiCfg();
+    var url = cfg.base + cfg.tenant + '/api/v1/getMedia?fileName=' + encodeURIComponent(filePath);
+
+    var resp = UrlFetchApp.fetch(url, {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + cfg.token },
+      muteHttpExceptions: true,
+    });
+
+    if (resp.getResponseCode() !== 200) {
+      return { ok: false, error: 'HTTP ' + resp.getResponseCode() };
+    }
+
+    var blob = resp.getBlob();
+    var base64 = Utilities.base64Encode(blob.getBytes());
+    var mime = blob.getContentType() || 'image/jpeg';
+
+    return { ok: true, data: 'data:' + mime + ';base64,' + base64 };
+  } catch (e) {
+    console.error('[Chat] getMedia: ' + e.message);
+    return { ok: false, error: e.message };
+  }
+}
+
+// ── Get viewable URL for PDF via Google Drive ──────────────────
+
+function getWatiPdfViewUrl(filePath) {
+  try {
+    var cfg = _watiCfg();
+    var url = cfg.base + cfg.tenant + '/api/v1/getMedia?fileName=' + encodeURIComponent(filePath);
+
+    var resp = UrlFetchApp.fetch(url, {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + cfg.token },
+      muteHttpExceptions: true,
+    });
+
+    if (resp.getResponseCode() !== 200) {
+      return { ok: false, error: 'HTTP ' + resp.getResponseCode() };
+    }
+
+    var blob = resp.getBlob();
+    var fileName = filePath.split('/').pop() || 'document.pdf';
+    blob.setName(fileName);
+
+    // Save to Drive in a temp folder
+    var folder;
+    var folders = DriveApp.getFoldersByName('_CRM_Temp_Media');
+    if (folders.hasNext()) {
+      folder = folders.next();
+    } else {
+      folder = DriveApp.createFolder('_CRM_Temp_Media');
+    }
+
+    var file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    var fileId = file.getId();
+    var viewUrl = 'https://drive.google.com/file/d/' + fileId + '/preview';
+
+    return { ok: true, viewUrl: viewUrl, fileId: fileId };
+  } catch (e) {
+    console.error('[Chat] getPdfViewUrl: ' + e.message);
     return { ok: false, error: e.message };
   }
 }
