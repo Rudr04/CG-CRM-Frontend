@@ -67,23 +67,7 @@
     .cc-item .code { font-size: 12px; color: #5f6368; font-weight: 500; flex-shrink: 0; }
     .phone-input { flex: 1; }
 
-    /* ── Product multi-select dropdown ── */
-    .pd-wrap { position: relative; }
-    .pd-btn  { 
-      width: 100%; padding: 10px 12px; border: 1px solid #dadce0; border-radius: 4px;
-      font-size: 13px; background: #fff; color: #202124; cursor: pointer; text-align: left;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .pd-btn:hover { border-color: #4285f4; }
-    .pd-btn.has-sel { color: #1f73e6; }
-    .pd-menu { display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff;
-               border: 1px solid #dadce0; border-top: none; border-radius: 0 0 4px 4px;
-               box-shadow: 0 4px 8px rgba(0,0,0,.1); z-index: 1000; max-height: 200px; overflow-y: auto; }
-    .pd-menu.show { display: block; }
-    .pd-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; }
-    .pd-item:hover { background: #f0f0f0; }
-    .pd-item input { width: 16px; height: 16px; accent-color: #1f73e6; flex-shrink: 0; margin: 0; }
-    .pd-item label { margin: 0; font-size: 13px; text-transform: none; font-weight: 400; color: #202124; letter-spacing: 0; cursor: pointer; flex: 1; }
+    /* ── Product multi-select dropdown (removed — now using standard selects) ── */
 
     /* ── Buttons ── */
     .btn-group { display: flex; gap: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e8eaed; }
@@ -141,14 +125,15 @@
         </div>
       </div>
 
-      <div class="form-row">
+      <div class="form-row tri">
         <div class="form-group">
-          <label>Product <span class="req">*</span></label>
-          <div class="pd-wrap">
-            <button type="button" class="pd-btn" id="pdBtn">Select Products ▼</button>
-            <div class="pd-menu" id="pdMenu"></div>
-          </div>
-          <div class="error" id="prodErr"></div>
+          <label>Inquiry <span class="req">*</span></label>
+          <select id="inquiry"><option value="">Select Inquiry</option></select>
+          <div class="error" id="inquiryErr"></div>
+        </div>
+        <div class="form-group">
+          <label>Product</label>
+          <select id="product"><option value="">— Select Product (optional) —</option></select>
         </div>
         <div class="form-group">
           <label>Agent <span class="req">*</span></label>
@@ -404,7 +389,6 @@
     ══════════════════════════════════════════════════════════════════ */
     document.addEventListener('DOMContentLoaded', function() {
       initCountryCodeDropdown();
-      initProductDropdown();
       loadDropdownOptions();
     });
 
@@ -491,15 +475,6 @@
       document.getElementById('phone').focus();
     }
 
-    /* ── Product Dropdown ── */
-    function initProductDropdown() {
-      var pdBtn  = document.getElementById('pdBtn');
-      var pdMenu = document.getElementById('pdMenu');
-
-      pdBtn.addEventListener('click', function(e) { e.preventDefault(); pdMenu.classList.toggle('show'); });
-      document.addEventListener('click', function(e) { if (!e.target.closest('.pd-wrap')) pdMenu.classList.remove('show'); });
-    }
-
     function loadDropdownOptions() {
       google.script.run.withSuccessHandler(function(data) {
         // Agents
@@ -508,14 +483,16 @@
           var o = document.createElement('option'); o.value = a; o.textContent = a; aSel.appendChild(o);
         });
 
-        // Products (multi-checkbox)
-        var pdMenu = document.getElementById('pdMenu');
+        // Inquiries
+        var iSel = document.getElementById('inquiry');
+        data.inquiries.forEach(function(i) {
+          var o = document.createElement('option'); o.value = i; o.textContent = i; iSel.appendChild(o);
+        });
+
+        // Products
+        var pSel = document.getElementById('product');
         data.products.forEach(function(p) {
-          var w  = document.createElement('div'); w.className = 'pd-item';
-          var cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = p; cb.name = 'prod';
-          cb.id = 'p_' + p.replace(/\s/g, '_'); cb.addEventListener('change', updSel);
-          var lb = document.createElement('label'); lb.htmlFor = cb.id; lb.textContent = p;
-          w.appendChild(cb); w.appendChild(lb); pdMenu.appendChild(w);
+          var o = document.createElement('option'); o.value = p; o.textContent = p; pSel.appendChild(o);
         });
 
         // Sources
@@ -524,18 +501,6 @@
           var o = document.createElement('option'); o.value = s; o.textContent = s; sSel.appendChild(o);
         });
       }).getDropdownOptions();
-    }
-
-    function updSel() {
-      var sel = Array.from(document.querySelectorAll('input[name=prod]:checked')).map(function(c) { return c.value; });
-      var btn = document.getElementById('pdBtn');
-      if (sel.length) {
-        btn.textContent = '\u2713 ' + sel.join(', ') + ' ▼';
-        btn.classList.add('has-sel');
-      } else {
-        btn.textContent = 'Select Products ▼';
-        btn.classList.remove('has-sel');
-      }
     }
 
     /* ══════════════════════════════════════════════════════════════════
@@ -557,7 +522,8 @@
         email:    document.getElementById('email').value.trim(),
         state:    document.getElementById('state').value.trim(),
         agent:    document.getElementById('agent').value,
-        products: Array.from(document.querySelectorAll('input[name=prod]:checked')).map(function(c) { return c.value; }).join(', '),
+        inquiry:  document.getElementById('inquiry').value,
+        product:  document.getElementById('product').value,
         source:   document.getElementById('source').value,
         remarks:  document.getElementById('remarks').value.trim()
       };
@@ -589,7 +555,6 @@
 
     function resetForm() {
       document.getElementById('frm').reset();
-      updSel();
       clrErr();
       // Reset to default country (India)
       document.getElementById('ccFlag').src = 'https://flagcdn.com/w40/in.png';
@@ -622,8 +587,8 @@
         showErr('agentErr', 'Agent is required'); ok = false;
       }
 
-      if (!document.querySelectorAll('input[name=prod]:checked').length) {
-        showErr('prodErr', 'Select at least one product'); ok = false;
+      if (!document.getElementById('inquiry').value) {
+        showErr('inquiryErr', 'Inquiry is required'); ok = false;
       }
 
       if (!document.getElementById('source').value) {

@@ -56,11 +56,11 @@ function openCallLog() {
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) { SpreadsheetApp.getUi().alert('No data yet.'); return; }
 
-  var data = sheet.getRange(2, 1, lastRow - 1, C.ACTION + 2).getValues();
+  var data = sheet.getRange(2, 1, lastRow - 1, C.REMARK + 2).getValues();
 
   // Filter rows that have call log entries (📞 marker)
   var called = data
-    .filter(function(r) { return (r[C.ACTION] || '').toString().indexOf('📞') >= 0; })
+    .filter(function(r) { return (r[C.REMARK] || '').toString().indexOf('📞') >= 0; })
     .slice(-30).reverse();
 
   var tpl = HtmlService.createTemplateFromFile('CallLog');
@@ -198,9 +198,9 @@ function _logCallToRow(sheet, rowIndex, agentName, agentPhone) {
     var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yy HH:mm');
     var entry = '📞 ' + stamp + ' — ' + agentName + ' (' + agentPhone + ')';
 
-    var cell    = sheet.getRange(rowIndex, C.ACTION + 1);
+    var cell    = sheet.getRange(rowIndex, C.REMARK + 1);
     var current = (cell.getValue() || '').toString().trim();
-    cell.setValue(current ? current + '\n' + entry : entry).setWrap(true);
+    cell.setValue(current ? current + ' | ' + entry : entry).setWrap(true);
 
     // Auto-bump Lead → Follow-up
     var statusCell = sheet.getRange(rowIndex, C.STATUS + 1);

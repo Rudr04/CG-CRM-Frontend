@@ -15,9 +15,10 @@ function openInquiryForm() {
 /** Called by form HTML to populate dropdowns */
 function getDropdownOptions() {
   return {
-    agents:   CRM.AGENTS,
-    products: CRM.PRODUCTS,
-    sources:  CRM.SOURCES,
+    agents:    CRM.AGENTS,
+    inquiries: CRM.INQUIRIES,
+    products:  CRM.PRODUCTS,
+    sources:   CRM.SOURCES,
   };
 }
 
@@ -36,7 +37,8 @@ function submitInquiry(formData) {
       waId:       waId,
       email:      formData.email || '',
       location:   formData.state || '',
-      product:    formData.products,
+      inquiry:    formData.inquiry || 'CGI',
+      product:    formData.product || '',
       source:     formData.source,
       team:       formData.agent,
       remark:     formData.remarks || '',
@@ -83,8 +85,8 @@ function _validateInquiry(data) {
     errors.push('Agent is required');
   }
   
-  if (!data.products || !data.products.trim()) {
-    errors.push('Select at least one product');
+  if (!data.inquiry || !data.inquiry.trim()) {
+    errors.push('Select an inquiry type');
   }
   
   if (!data.source) {
@@ -132,14 +134,15 @@ function _addInquiryToSheet(payload) {
     var time = [ist.getHours(), ist.getMinutes(), ist.getSeconds()]
       .map(function(n) { return String(n).padStart(2, '0'); }).join(':');
 
-    var row = new Array(C.INTERACTION + 1).fill('');
-    row[C.CGILN]     = '=ROW()-1+' + CRM.SERIAL_OFFSET;
+    var row = new Array(C.PIPELINE_STAGE + 1).fill('');
+    row[C.CGID]       = '=ROW()-1+' + CRM.SERIAL_OFFSET;
     row[C.DATE]       = date;
     row[C.TIME]       = time;
     row[C.NAME]       = payload.senderName;
     row[C.NUMBER]     = payload.waId;
     row[C.LOCATION]   = payload.location;
-    row[C.PRODUCT]    = payload.product;
+    row[C.INQUIRY]    = payload.inquiry || 'CGI';
+    row[C.PRODUCT]    = payload.product || '';
     row[C.SOURCE]     = payload.source;
     row[C.TEAM]       = payload.team;
     row[C.STATUS]     = CRM.DEFAULTS.STATUS;

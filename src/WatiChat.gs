@@ -79,7 +79,8 @@ function fetchWatiMessages(phoneNumber) {
     var body = JSON.parse(resp.getContentText());
     var raw  = (body.messages && body.messages.items) ? body.messages.items : [];
 
-    console.info('[All body.messages]' + body.messages.items);
+    // Get template header image map (cached)
+    var tplHeaders = _getTemplateHeaderMap();
     
     // WATI returns newest-first; reverse so oldest is at top
     var messages = raw.reverse()
@@ -96,6 +97,15 @@ function fetchWatiMessages(phoneNumber) {
           mediaType = type;
         }
 
+        // For broadcastMessages, extract template name and check for header image
+        var tplImageUrl = null;
+        if (m.eventType === 'broadcastMessage' && m.eventDescription) {
+          var tplMatch = m.eventDescription.match(/"([^"]+)"/);
+          if (tplMatch && tplMatch[1] && tplHeaders[tplMatch[1]]) {
+            tplImageUrl = tplHeaders[tplMatch[1]];
+          }
+        }
+
         return {
           id:        m.id || m.whatsappMessageId || '',
           text:      FLOW_BODY_TEXT[m.text] || m.text || m.body || m.finalText || '',
@@ -105,6 +115,7 @@ function fetchWatiMessages(phoneNumber) {
           status:    m.statusString || m.status || '',
           mediaPath: mediaPath,
           mediaType: mediaType,
+          tplImageUrl: tplImageUrl,
         };
       });
 
@@ -114,7 +125,6 @@ function fetchWatiMessages(phoneNumber) {
     return { ok: false, messages: [], error: e.message };
   }
 }
-
 // ── Send Free-Text Message ─────────────────────────────────────
 
 function sendWatiMessage(phoneNumber, messageText) {
@@ -240,6 +250,7 @@ function updateLeadStatusFromChat(rowIndex, newStatus, appendRemark) {
 // ── Fetch media file as base64 ─────────────────────────────────
 
 function getWatiMedia(filePath) {
+  console.log('[Media Debug] filePath=' + filePath);
   try {
     var cfg = _watiCfg();
     var url = cfg.base + cfg.tenant + '/api/v1/getMedia?fileName=' + encodeURIComponent(filePath);
@@ -306,4 +317,72 @@ function getWatiPdfViewUrl(filePath) {
     console.error('[Chat] getPdfViewUrl: ' + e.message);
     return { ok: false, error: e.message };
   }
+}
+
+// ── Template header image cache ────────────────────────────────
+
+function _getTemplateHeaderMap() {
+  // Check cache first (10 min TTL)
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get('tplHeaderMap');
+  if (cached) {
+    try { return JSON.parse(cached); } catch(e) {}
+  }
+
+  try {
+    var cfg = _watiCfg();
+    var url = cfg.base + cfg.tenant + '/api/v1/getMessageTemplates?pageSize=100&pageIndex=0';
+    var resp = UrlFetchApp.fetch(url, {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + cfg.token, 'accept': 'application/json' },
+      muteHttpExceptions: true,
+    });
+
+    var body = JSON.parse(resp.getContentText());
+    var all = body.messageTemplates || [];
+    var map = {};
+
+    all.forEach(function(t) {
+      if (t.header && t.header.typeString === 'image' && t.header.mediaFromPC) {
+        map[t.elementName || t.name] = 'data/images/' + t.header.mediaFromPC;
+      }
+    });
+
+    cache.put('tplHeaderMap', JSON.stringify(map), 600); // 10 min
+    return map;
+  } catch (e) {
+    console.error('[Chat] getTemplateHeaderMap: ' + e.message);
+    return {};
+  }
+}
+
+function testTemplateImage() {
+  var cfg = _watiCfg();
+  var fileName = 'Government_Aproved_University_1_-7851e380-5dcf-4c0c-a503-a164e1ead776.png';
+  
+  // Try different URL formats
+  var urls = [
+    cfg.base + cfg.tenant + '/api/v1/getMedia?fileName=' + encodeURIComponent(fileName),
+    cfg.base + cfg.tenant + '/api/v1/getMedia?fileName=' + encodeURIComponent('data/images/' + fileName),
+    'https://ap.wati-assets.io/wwwroot/' + fileName,
+    cfg.base + cfg.tenant + '/media/' + fileName,
+  ];
+  
+  urls.forEach(function(url, i) {
+    try {
+      var resp = UrlFetchApp.fetch(url, {
+        method: 'GET',
+        headers: { 'Authorization': 'Bearer ' + cfg.token },
+        muteHttpExceptions: true,
+      });
+      console.log('[Img Test] URL ' + i + ' (' + resp.getResponseCode() + '): type=' + resp.getBlob().getContentType() + ' size=' + resp.getBlob().getBytes().length);
+    } catch(e) {
+      console.log('[Img Test] URL ' + i + ' ERROR: ' + e.message);
+    }
+  });
+}
+
+function clearTplCache() {
+  CacheService.getScriptCache().remove('tplHeaderMap');
+  console.log('Cache cleared');
 }

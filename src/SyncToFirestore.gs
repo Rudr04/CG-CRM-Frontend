@@ -90,6 +90,7 @@ function onSheetEditSync(e) {
             team:     sheet.getRange(row, CRM.COL.TEAM + 1).getValue() || '',
             status:   sheet.getRange(row, CRM.COL.STATUS + 1).getValue() || '',
             location: sheet.getRange(row, CRM.COL.LOCATION + 1).getValue() || '',
+            inquiry:  sheet.getRange(row, CRM.COL.INQUIRY + 1).getValue() || '',
             product:  sheet.getRange(row, CRM.COL.PRODUCT + 1).getValue() || '',
           },
         });

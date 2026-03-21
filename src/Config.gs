@@ -51,42 +51,19 @@ CRM.HEADER_ROW = 1;
 
 // ── DSR Column Indices (0-based) ──────────────────────────────
 //
-//  A  CGILN       H  PRODUCT     O  REMARK      V  NO_91
-//  B  DATE        I  MESSAGE     P  TEAM_2      W  DAY
-//  C  TIME        J  SOURCE      Q  STATUS_2    X  HOURS
-//  D  NAME        K  TEAM        R  REMARK_2    Y  CONVERTED
-//  E  NUMBER      L  STATUS      S  CONF_CB     Z  ATTENDANCE
-//  F  REGI_NO     M  RATING      T  CONFIRM     AA INTERACTION
-//  G  LOCATION    N  CB_DATE      U  JOIN_POLL
+//  A  CGID        H  PRODUCT     O  REMARK
+//  B  DATE        I  MESSAGE     P  DAY
+//  C  TIME        J  SOURCE      Q  HOURS
+//  D  NAME        K  TEAM        R  CONVERTED
+//  E  NUMBER      L  STATUS      S  PIPELINE_STAGE
+//  F  LOCATION    M  RATING
+//  G  INQUIRY     N  CB_DATE
 //
 CRM.COL = {
-  CGILN:       0,
-  DATE:        1,
-  TIME:        2,
-  NAME:        3,
-  NUMBER:      4,
-  REGI_NO:     5,
-  LOCATION:    6,
-  PRODUCT:     7,
-  MESSAGE:     8,
-  SOURCE:      9,
-  TEAM:       10,
-  STATUS:     11,
-  RATING:     12,
-  CB_DATE:     13,
-  REMARK:     14,
-  TEAM_2:     15,
-  STATUS_2:   16,
-  REMARK_2:   17,
-  CONF_CB:    18,
-  CONFIRM:    19,
-  JOIN_POLL:  20,
-  NO_91:      21,
-  DAY:        22,
-  HOURS:      23,
-  CONVERTED:  24,
-  ATTENDANCE: 25,
-  INTERACTION:26,
+  CGID: 0, DATE: 1, TIME: 2, NAME: 3, NUMBER: 4, LOCATION: 5,
+  INQUIRY: 6, PRODUCT: 7, MESSAGE: 8, SOURCE: 9, TEAM: 10,
+  STATUS: 11, RATING: 12, CB_DATE: 13, REMARK: 14, DAY: 15,
+  HOURS: 16, CONVERTED: 17, PIPELINE_STAGE: 18,
 };
 
 // ── Agent_Config Tab Columns (0-based) ────────────────────────
@@ -103,7 +80,8 @@ CRM.AGENTS = [
   'Shivani', 'Payal', 'ROBO', 'Vidhyuta', 'Manthan',
 ];
 
-CRM.PRODUCTS = ['CGI', 'CV Reports', 'CK Software', 'Consulting', 'Remedies'];
+CRM.INQUIRIES = ['CGI', 'CosmoGuru', 'CosmoKundli', 'CosmoWellness'];
+CRM.PRODUCTS = ['Jyotish', 'Vastu', 'CV Planner 5D', 'Grah Vibes', 'Cosmo Vibes', 'Consultation'];
 
 CRM.SOURCES = [
   'Google', 'Just Dial', 'Pilot', 'Refrence', 'Direct',
@@ -118,9 +96,8 @@ CRM.STATUSES = [
 // ── Firestore Sync (onEdit trigger) ──────────────────────────
 //    TRACKED_COLS: 1-indexed column → field name (what gets synced)
 //    HISTORY_ACTIONS: field → Firestore history action label
-// ── Firestore Sync (onEdit trigger) ──────────────────────────
 CRM.SYNC = (function() {
-  
+
   // ── Master config: 0-based column indices ──
   var fieldConfig = {
     [CRM.COL.NAME]: {
@@ -130,6 +107,14 @@ CRM.SYNC = (function() {
     [CRM.COL.LOCATION]: {
       fieldName: 'location',
       historyAction: 'location_updated'
+    },
+    [CRM.COL.INQUIRY]: {
+      fieldName: 'inquiry',
+      historyAction: 'inquiry_changed'
+    },
+    [CRM.COL.PRODUCT]: {
+      fieldName: 'product',
+      historyAction: 'product_changed'
     },
     [CRM.COL.TEAM]: {
       fieldName: 'team',
@@ -147,17 +132,9 @@ CRM.SYNC = (function() {
       fieldName: 'remark',
       historyAction: 'remark_added'
     },
-    [CRM.COL.TEAM_2]: {
-      fieldName: 'team_2',
-      historyAction: 'team_2_changed'
-    },
-    [CRM.COL.STATUS_2]: {
-      fieldName: 'status_2',
-      historyAction: 'status_2_changed'
-    },
-    [CRM.COL.REMARK_2]: {
-      fieldName: 'remark_2',
-      historyAction: 'remark_2_added'
+    [CRM.COL.PIPELINE_STAGE]: {
+      fieldName: 'pipeline_stage',
+      historyAction: 'stage_changed'
     },
   };
 
@@ -195,7 +172,7 @@ CRM.SERIAL_OFFSET = 230000;
 // ── Defaults ─────────────────────────────────────────────────
 CRM.DEFAULTS = {
   STATUS:  'Lead',
-  PRODUCT: 'CGI',
+  INQUIRY: 'CGI',
   TEAM:    'Not Assigned',
 };
 

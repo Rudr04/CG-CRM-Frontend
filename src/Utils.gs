@@ -74,7 +74,7 @@ function formatDisplayNumber(raw) {
  */
 function getLeadData(sheet, rowIndex) {
   var C = CRM.COL;
-  var d = sheet.getRange(rowIndex, 1, 1, C.INTERACTION + 1).getValues()[0];
+  var d = sheet.getRange(rowIndex, 1, 1, C.PIPELINE_STAGE + 1).getValues()[0];
   var number = (d[C.NUMBER] || '').toString().trim();
 
   if (!number) {
@@ -85,15 +85,24 @@ function getLeadData(sheet, rowIndex) {
   }
 
   return {
-    rowIndex: rowIndex,
     row:      rowIndex,
-    name:     (d[C.NAME]     || '').toString().trim(),
+    rowIndex: rowIndex,
+    cgid:     d[C.CGID],
+    date:     d[C.DATE],
+    time:     d[C.TIME],
+    name:     (d[C.NAME] || '').toString().trim(),
     number:   number,
     location: (d[C.LOCATION] || '').toString().trim(),
-    product:  (d[C.PRODUCT]  || '').toString().trim(),
-    team:     (d[C.TEAM]     || '').toString().trim(),
-    status:   (d[C.STATUS]   || '').toString().trim(),
-    remark:   (d[C.REMARK]   || '').toString().trim(),
+    inquiry:  (d[C.INQUIRY] || '').toString().trim(),
+    product:  (d[C.PRODUCT] || '').toString().trim(),
+    message:  (d[C.MESSAGE] || '').toString().trim(),
+    source:   (d[C.SOURCE] || '').toString().trim(),
+    team:     (d[C.TEAM] || '').toString().trim(),
+    status:   (d[C.STATUS] || '').toString().trim(),
+    rating:   (d[C.RATING] || '').toString().trim(),
+    cbDate:   (d[C.CB_DATE] || '').toString().trim(),
+    remark:   (d[C.REMARK] || '').toString().trim(),
+    pipelineStage: (d[C.PIPELINE_STAGE] || '').toString().trim(),
   };
 }
 
