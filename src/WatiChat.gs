@@ -63,7 +63,7 @@ function fetchWatiMessages(phoneNumber) {
   try {
     var cfg   = _watiCfg();
     var clean = phoneNumber.toString().replace(/\D/g, '');
-    var url   = cfg.base + cfg.tenant + '/api/v1/getMessages/' + clean + '?pageSize=100&pageIndex=0';
+    var url   = cfg.base + cfg.tenant + '/api/v1/getMessages/' + clean + '?pageSize=50&pageIndex=0';
 
     var resp = UrlFetchApp.fetch(url, {
       method: 'GET',
@@ -119,7 +119,16 @@ function fetchWatiMessages(phoneNumber) {
         };
       });
 
-    return { ok: true, messages: messages };
+    // Find last inbound message timestamp for 24hr session check
+    var lastInboundTs = null;
+    for (var i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].direction === 'in') {
+        lastInboundTs = messages[i].timestamp;
+        break;
+      }
+    }
+
+    return { ok: true, messages: messages, lastInboundTs: lastInboundTs };
   } catch (e) {
     console.error('[Chat] fetchMessages: ' + e.message);
     return { ok: false, messages: [], error: e.message };
@@ -191,6 +200,44 @@ function sendWatiTemplate(phoneNumber, templateName, parameters) {
   }
 }
 
+// ── Send File via WATI ─────────────────────────────────────────
+
+function sendWatiFile(phoneNumber, fileName, base64Data, mimeType) {
+  if (!base64Data) return { ok: false, error: 'No file data' };
+
+  try {
+    var cfg   = _watiCfg();
+    var clean = phoneNumber.toString().replace(/\D/g, '');
+    var url   = cfg.base + cfg.tenant + '/api/v1/sendSessionFile/' + clean;
+
+    var fileBlob = Utilities.newBlob(
+      Utilities.base64Decode(base64Data),
+      mimeType || 'application/octet-stream',
+      fileName
+    );
+
+    var resp = UrlFetchApp.fetch(url, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + cfg.token },
+      payload: { file: fileBlob },
+      muteHttpExceptions: true,
+    });
+
+    var code = resp.getResponseCode();
+    var body = JSON.parse(resp.getContentText());
+
+    if (code === 200) {
+      console.log('[Chat] File sent to ' + clean + ': ' + fileName);
+      return { ok: true };
+    }
+    console.error('[Chat] sendFile ' + code + ': ' + JSON.stringify(body));
+    return { ok: false, error: body.message || ('HTTP ' + code) };
+  } catch (e) {
+    console.error('[Chat] sendFile: ' + e.message);
+    return { ok: false, error: e.message };
+  }
+}
+
 
 // ── Fetch Approved Templates ───────────────────────────────────
 
@@ -230,14 +277,64 @@ function updateLeadStatusFromChat(rowIndex, newStatus, appendRemark) {
   try {
     var C     = CRM.COL;
     var sheet = getSheet(CRM.SHEETS.DSR);
+    var edits = [];
+    var editor = Session.getEffectiveUser().getEmail() || 'chat_sidebar';
+
+    // Get phone number for Firestore lookup
+    var phone = (sheet.getRange(rowIndex, C.NUMBER + 1).getValue() || '').toString().trim();
+
+    // Get current row data for sync payload
+    var rowData = {
+      name:     sheet.getRange(rowIndex, C.NAME + 1).getValue() || '',
+      team:     sheet.getRange(rowIndex, C.TEAM + 1).getValue() || '',
+      status:   newStatus || sheet.getRange(rowIndex, C.STATUS + 1).getValue() || '',
+      location: sheet.getRange(rowIndex, C.LOCATION + 1).getValue() || '',
+      inquiry:  sheet.getRange(rowIndex, C.INQUIRY + 1).getValue() || '',
+      product:  sheet.getRange(rowIndex, C.PRODUCT + 1).getValue() || '',
+    };
 
     if (newStatus) {
+      var oldStatus = sheet.getRange(rowIndex, C.STATUS + 1).getDisplayValue();
       sheet.getRange(rowIndex, C.STATUS + 1).setValue(newStatus);
+
+      if (phone) {
+        edits.push({
+          row:        rowIndex,
+          phone:      phone,
+          field:      'status',
+          oldValue:   oldStatus,
+          newValue:   newStatus,
+          action:     CRM.SYNC.HISTORY_ACTIONS['status'] || 'status_changed',
+          timestamp:  new Date().getTime(),
+          retryCount: 0,
+          rowData:    rowData,
+        });
+      }
     }
+
     if (appendRemark && appendRemark.trim()) {
       var current  = (sheet.getRange(rowIndex, C.REMARK + 1).getValue() || '').toString().trim();
       var combined = current ? (current + ' | ' + appendRemark.trim()) : appendRemark.trim();
       sheet.getRange(rowIndex, C.REMARK + 1).setValue(combined);
+
+      if (phone) {
+        edits.push({
+          row:        rowIndex,
+          phone:      phone,
+          field:      'remark',
+          oldValue:   current,
+          newValue:   combined,
+          action:     CRM.SYNC.HISTORY_ACTIONS['remark'] || 'remark_updated',
+          timestamp:  new Date().getTime(),
+          retryCount: 0,
+          rowData:    rowData,
+        });
+      }
+    }
+
+    // Sync to Firestore via Cloud Function
+    if (edits.length > 0) {
+      _sendEditsToCloudFunction(edits, editor);
     }
 
     return { ok: true };

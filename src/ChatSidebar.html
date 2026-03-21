@@ -124,6 +124,12 @@ select, .tpanel input { width: 100%; border: 1px solid #dadce0; border-radius: 6
 .wa-link { color: #0d6efd; text-decoration: none; word-break: break-all; }
 .wa-link:hover { text-decoration: underline; }
 .wa-link:visited { color: #6f42c1; }
+
+/* ── Session expired bar ── */
+.session-expired { display: none; background: #fff3cd; color: #856404; font-size: 10px; padding: 5px 10px; text-align: center; border-radius: 6px; width: 100%; border: 1px solid #ffc107; }
+.session-expired.show { display: block; }
+.irow.disabled { opacity: .4; pointer-events: none; }
+.abtn.disabled { opacity: .4; pointer-events: none; }
 </style>
 </head>
 
@@ -172,9 +178,10 @@ select, .tpanel input { width: 100%; border: 1px solid #dadce0; border-radius: 6
     <span class="fsize" id="fsize"></span>
     <span class="fremove" id="fremove" title="Remove">✕</span>
   </div>
-  <div class="irow">
+  <div class="session-expired" id="sessionBar">⚠️ 24hr session expired. Use template to re-engage.</div>
+  <div class="irow" id="irow">
     <textarea id="msgInput" rows="1" placeholder="Type a message..."></textarea>
-    <label class="abtn" for="fileInput" title="Attach file">🔗</label>
+    <label class="abtn" id="abtn" for="fileInput" title="Attach file">🔗</label>
     <input type="file" id="fileInput" style="display:none;" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.mp4,.mp3">
   </div>
   <button class="sbtn" id="sendBtn" title="Send (Ctrl+Enter)">
@@ -546,10 +553,50 @@ function doPoll() {
   google.script.run
     .withSuccessHandler(function(r) {
       setPoll(r && r.ok ? 'ok' : 'err');
-      if (r && r.ok) renderMsgs(r.messages || []);
+      if (r && r.ok) {
+        renderMsgs(r.messages || []);
+        checkSession(r.lastInboundTs);
+      }
     })
     .withFailureHandler(function(e) { setPoll('err'); console.error(e); })
     .fetchWatiMessages(LEAD.number);
+}
+
+/* ── 24hr Session Window Check ── */
+function checkSession(lastInboundTs) {
+  var bar = document.getElementById('sessionBar');
+  var irow = document.getElementById('irow');
+  var abtn = document.getElementById('abtn');
+  var sendBtn = document.getElementById('sendBtn');
+
+  if (!lastInboundTs) {
+    // No inbound messages at all — session expired
+    bar.classList.add('show');
+    irow.classList.add('disabled');
+    abtn.classList.add('disabled');
+    sendBtn.disabled = true;
+    return;
+  }
+
+  var ts = lastInboundTs;
+  if (typeof ts === 'string' && /^\d{10,13}$/.test(ts)) ts = parseInt(ts);
+  var d = new Date(typeof ts === 'number' ? (ts < 9999999999 ? ts * 1000 : ts) : ts);
+  var now = new Date();
+  var hoursDiff = (now - d) / (1000 * 60 * 60);
+
+  if (hoursDiff >= 24) {
+    // Session expired
+    bar.classList.add('show');
+    irow.classList.add('disabled');
+    abtn.classList.add('disabled');
+    sendBtn.disabled = true;
+  } else {
+    // Session active
+    bar.classList.remove('show');
+    irow.classList.remove('disabled');
+    abtn.classList.remove('disabled');
+    sendBtn.disabled = false;
+  }
 }
 
 /* ── Send message (handles both text and file) ── */
