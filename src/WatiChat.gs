@@ -250,7 +250,6 @@ function updateLeadStatusFromChat(rowIndex, newStatus, appendRemark) {
 // ── Fetch media file as base64 ─────────────────────────────────
 
 function getWatiMedia(filePath) {
-  console.log('[Media Debug] filePath=' + filePath);
   try {
     var cfg = _watiCfg();
     var url = cfg.base + cfg.tenant + '/api/v1/getMedia?fileName=' + encodeURIComponent(filePath);
@@ -348,41 +347,10 @@ function _getTemplateHeaderMap() {
       }
     });
 
-    cache.put('tplHeaderMap', JSON.stringify(map), 600); // 10 min
+    cache.put('tplHeaderMap', JSON.stringify(map), 21600); // 6 hours
     return map;
   } catch (e) {
     console.error('[Chat] getTemplateHeaderMap: ' + e.message);
     return {};
   }
-}
-
-function testTemplateImage() {
-  var cfg = _watiCfg();
-  var fileName = 'Government_Aproved_University_1_-7851e380-5dcf-4c0c-a503-a164e1ead776.png';
-  
-  // Try different URL formats
-  var urls = [
-    cfg.base + cfg.tenant + '/api/v1/getMedia?fileName=' + encodeURIComponent(fileName),
-    cfg.base + cfg.tenant + '/api/v1/getMedia?fileName=' + encodeURIComponent('data/images/' + fileName),
-    'https://ap.wati-assets.io/wwwroot/' + fileName,
-    cfg.base + cfg.tenant + '/media/' + fileName,
-  ];
-  
-  urls.forEach(function(url, i) {
-    try {
-      var resp = UrlFetchApp.fetch(url, {
-        method: 'GET',
-        headers: { 'Authorization': 'Bearer ' + cfg.token },
-        muteHttpExceptions: true,
-      });
-      console.log('[Img Test] URL ' + i + ' (' + resp.getResponseCode() + '): type=' + resp.getBlob().getContentType() + ' size=' + resp.getBlob().getBytes().length);
-    } catch(e) {
-      console.log('[Img Test] URL ' + i + ' ERROR: ' + e.message);
-    }
-  });
-}
-
-function clearTplCache() {
-  CacheService.getScriptCache().remove('tplHeaderMap');
-  console.log('Cache cleared');
 }

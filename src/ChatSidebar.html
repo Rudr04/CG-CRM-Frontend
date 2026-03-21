@@ -9,10 +9,11 @@
 .abtn:hover { opacity: .7; }
 
 /* ── Media in chat ── */
-.media-thumb { max-width: 100%; max-height: 160px; border-radius: 6px; cursor: pointer; display: block; margin-bottom: 2px; }
+.media-thumb { width: 100%; border-radius: 6px; cursor: pointer; display: block; margin-bottom: 2px; }
 .media-thumb:hover { opacity: .85; }
 .media-placeholder { background: #e9edef; border-radius: 6px; padding: 20px; text-align: center; color: #667781; font-size: 11px; margin-bottom: 2px; }
-.media-video { max-width: 100%; max-height: 200px; border-radius: 6px; display: block; margin-bottom: 2px; }
+.media-video { width: 100%; min-width: 200px; max-height: 200px; border-radius: 6px; display: block; margin-bottom: 2px; }
+.bubble:has(.media-video) { min-width: 220px; }
 .media-audio { width: 100%; margin-bottom: 2px; }
 .media-file { display: flex; align-items: center; gap: 6px; background: #e9edef; border-radius: 6px; padding: 8px 10px; margin-bottom: 2px; font-size: 11px; color: #3b4a54; cursor: pointer; }
 .media-file:hover { background: #dfe3e7; }
@@ -26,6 +27,14 @@
 .pdf-header .pdf-close { background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; padding: 4px 8px; }
 .pdf-header .pdf-close:hover { opacity: .7; }
 .pdf-frame { flex: 1; border: none; width: 100%; }
+
+/* ── Image Viewer overlay ── */
+.img-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.9); z-index: 100; display: flex; flex-direction: column; cursor: pointer; }
+.img-overlay .img-header { display: flex; justify-content: flex-end; padding: 8px 12px; flex-shrink: 0; }
+.img-overlay .img-close { background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; padding: 4px 8px; }
+.img-overlay .img-close:hover { opacity: .7; }
+.img-overlay .img-full { flex: 1; display: flex; align-items: center; justify-content: center; padding: 10px; }
+.img-overlay .img-full img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; }
 
 /* ── File preview bar ── */
 .fprev { display: none; background: #fff; margin-top: -1px; padding: 4px 10px; border-radius: 8px; border: 1px solid #e0e0e0; font-size: 11px; color: #3b4a54; align-items: center; gap: 6px; width: 100%; }
@@ -93,7 +102,7 @@ html, body {
 .sbtn:disabled { background: #ccc; cursor: not-allowed; }
 
 /* ── Template section ── */
-.tgl { font-size: 11px; color: #075e54; cursor: pointer; padding: 0 2px; margin: 3px 0px 5px; display: flex; align-items: center; gap: 4px; user-select: none; width: 100%; }
+.tgl { font-size: 11px; color: #075e54; cursor: pointer; padding: 0 2px; margin: 5px 0px; display: flex; align-items: center; gap: 4px; user-select: none; width: 100%; }
 .tpanel { display: none; margin-top: -1px; width: 100%; }
 .tpanel.open { display: block; }
 select, .tpanel input { width: 100%; border: 1px solid #dadce0; border-radius: 6px; padding: 5px 9px; font-size: 12px; background: #fff; outline: none; margin-bottom: 3px; }
@@ -157,9 +166,15 @@ select, .tpanel input { width: 100%; border: 1px solid #dadce0; border-radius: 6
 
 <!-- Input area -->
 <div class="iarea">
+  <div class="fprev" id="fprev">
+    <span class="ficon" id="ficon">📄</span>
+    <span class="fname" id="fname"></span>
+    <span class="fsize" id="fsize"></span>
+    <span class="fremove" id="fremove" title="Remove">✕</span>
+  </div>
   <div class="irow">
     <textarea id="msgInput" rows="1" placeholder="Type a message..."></textarea>
-    <label class="abtn" for="fileInput" title="Attach file">📎</label>
+    <label class="abtn" for="fileInput" title="Attach file">🔗</label>
     <input type="file" id="fileInput" style="display:none;" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.mp4,.mp3">
   </div>
   <button class="sbtn" id="sendBtn" title="Send (Ctrl+Enter)">
@@ -181,14 +196,6 @@ select, .tpanel input { width: 100%; border: 1px solid #dadce0; border-radius: 6
     </select>
     <button onclick="updStatus()">Update</button>
   </div>
-  
-  <div class="fprev" id="fprev">
-    <span class="ficon" id="ficon">📄</span>
-    <span class="fname" id="fname"></span>
-    <span class="fsize" id="fsize"></span>
-    <span class="fremove" id="fremove" title="Remove">✕</span>
-  </div>
-  
 </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -300,7 +307,14 @@ function renderMsgs(messages) {
 
     var b = document.createElement('div');
     b.className = 'bubble ' + m.direction + (m.type === 'template' ? ' tpl' : '');
-
+    // ── Template header image ──
+    if (m.tplImageUrl) {
+      var tph = document.createElement('div');
+      tph.className = 'media-placeholder';
+      tph.textContent = '🖼️ Loading...';
+      b.appendChild(tph);
+      loadMedia(tph, m.tplImageUrl, 'image');
+    }
     // ── Media content ──
     if (m.mediaType && m.mediaPath) {
       if (m.mediaType === 'image' || m.mediaType === 'sticker') {
@@ -393,7 +407,18 @@ function replaceWithMedia(el, dataUrl, mediaType) {
     var img = document.createElement('img');
     img.className = 'media-thumb';
     img.src = dataUrl;
-    img.onclick = function() { window.open(dataUrl, '_blank'); };
+    img.onclick = function() {
+      // Convert data URL to blob URL for new tab (GAS blocks data URLs)
+      var parts = dataUrl.split(',');
+      var mime = parts[0].match(/:(.*?);/)[1];
+      var raw = atob(parts[1]);
+      var arr = new Uint8Array(raw.length);
+      for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+      var blob = new Blob([arr], { type: mime });
+      var blobUrl = URL.createObjectURL(blob);
+      var win = window.open(blobUrl, '_blank');
+      if (!win) openImageViewer(dataUrl); // fallback to overlay if popup blocked
+    };
     el.replaceWith(img);
 
   } else if (mediaType === 'video') {
@@ -485,6 +510,34 @@ function downloadFile(dataUrl, fileName) {
   a.href = dataUrl;
   a.download = fileName;
   a.click();
+}
+
+function openImageViewer(dataUrl) {
+  var existing = document.getElementById('imgOverlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.className = 'img-overlay';
+  overlay.id = 'imgOverlay';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var header = document.createElement('div');
+  header.className = 'img-header';
+  var closeBtn = document.createElement('button');
+  closeBtn.className = 'img-close';
+  closeBtn.textContent = '\u2715';
+  closeBtn.onclick = function() { overlay.remove(); };
+  header.appendChild(closeBtn);
+
+  var imgWrap = document.createElement('div');
+  imgWrap.className = 'img-full';
+  var img = document.createElement('img');
+  img.src = dataUrl;
+  imgWrap.appendChild(img);
+
+  overlay.appendChild(header);
+  overlay.appendChild(imgWrap);
+  document.body.appendChild(overlay);
 }
 
 /* ── Poll ── */
