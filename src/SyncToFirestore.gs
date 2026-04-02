@@ -428,17 +428,18 @@ function setupSyncTrigger() {
     .everyMinutes(1)
     .create();
 
-  ui.alert('⚡ Sync Activated!',
-    'Real-time Sheet → Firestore sync is now active.\n\n' +
-    '✅ Edit trigger installed\n' +
-    '✅ Retry job installed (every 1 min)\n\n' +
-    'Tracked columns:\n' +
-    '• Team, Status, Rating, Remark\n' +
-    '• Name, Location\n' +
-    '• Team_2, Status_2, Remark_2\n\n' +
-    'Failed syncs are automatically retried up to 3 times.\n\n' +
-    'To disable: CRM Add-Ons → Firebase → ❌ Remove Realtime Sync',
-    ui.ButtonSet.OK);
+    var trackedList = Object.keys(CRM.SYNC.TRACKED_COLS).map(function(colNum) {
+      return '• Col ' + String.fromCharCode(64 + parseInt(colNum)) + ' → ' + CRM.SYNC.TRACKED_COLS[colNum];
+    }).join('\n');
+
+    ui.alert('⚡ Sync Activated!',
+      'Real-time Sheet → Firestore sync is now active.\n\n' +
+      '✅ Edit trigger installed\n' +
+      '✅ Retry job installed (every 1 min)\n\n' +
+      'Tracked columns:\n' + trackedList + '\n\n' +
+      'Failed syncs are automatically retried up to 3 times.\n\n' +
+      'To disable: CRM Add-Ons → Firestore Sync → ⏹️ Remove Realtime Sync',
+      ui.ButtonSet.OK);
 }
 
 
