@@ -3,6 +3,17 @@
 <head>
 <base target="_top">
 <style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  background: #f0f2f5;
+  overflow: hidden;
+}
 
 /* ── Attach button ── */
 .abtn { font-size: 18px; cursor: pointer; padding: 4px 2px 4px 0; display: flex; align-items: center; user-select: none; flex-shrink: 0; }
@@ -45,17 +56,6 @@
 .fprev .fremove:hover { opacity: .7; }
 .fprev .ficon { flex-shrink: 0; font-size: 16px; }
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body {
-  height: 100%;
-  width: 100%;
-  margin: 0 !important;
-  padding: 0 !important;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 13px;
-  background: #f0f2f5;
-  overflow: hidden;
-}
 .sidebar-content, .script-application-sidebar {
   padding: 0 !important;
   margin: 0 !important;
@@ -109,6 +109,7 @@ select, .tpanel input { width: 100%; border: 1px solid #dadce0; border-radius: 6
 .tprev { font-size: 11px; color: #555; background: #fff; padding: 4px 9px; border-radius: 6px; border: 1px solid #e0e0e0; margin-bottom: 3px; min-height: 24px; max-height: 48px; overflow-y: auto; white-space: pre-wrap; display: none; }
 .tsend { width: 100%; padding: 6px; background: #25d366; border: none; border-radius: 6px; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
 .tsend:hover { background: #1da851; }
+.tsend:disabled { background: #ccc; cursor: not-allowed; }
 
 /* ── Status update ── */
 .supd { display: flex; gap: 5px; align-items: center; margin: 5px 0px 10px; width: 100%; }
@@ -130,6 +131,27 @@ select, .tpanel input { width: 100%; border: 1px solid #dadce0; border-radius: 6
 .session-expired.show { display: block; }
 .irow.disabled { opacity: .4; pointer-events: none; }
 .abtn.disabled { opacity: .4; pointer-events: none; }
+
+/* ── Template components ── */
+.tpl-header { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+.tpl-footer { font-size: 10px; color: #667781; font-style: italic; margin-top: 6px; }
+.tpl-buttons { margin-top: 6px; border-top: 1px solid rgba(0,0,0,.08); padding-top: 4px; display: flex; flex-direction: column; gap: 3px; }
+.tpl-btn { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: #075e54; padding: 4px; cursor: default; }
+.tpl-btn.link { color: #0d6efd; cursor: pointer; }
+.tpl-btn.link:hover { text-decoration: underline; }
+
+/* ── Searchable template dropdown ── */
+.tpl-dropdown { position: relative; width: 100%; margin-bottom: 3px; }
+.tpl-dd-input { width: 100%; border: 1px solid #dadce0; border-radius: 6px; padding: 6px 9px; font-size: 12px; background: #fff; outline: none; cursor: pointer; }
+.tpl-dd-input:focus { border-color: #075e54; }
+.tpl-dd-list { display: none; position: absolute; bottom: 100%; left: 0; right: 0; max-height: 180px; overflow-y: auto; background: #fff; border: 1px solid #dadce0; border-radius: 6px; box-shadow: 0 -2px 8px rgba(0,0,0,.12); z-index: 50; margin-bottom: 2px; }
+.tpl-dd-list.open { display: block; }
+.tpl-dd-item { padding: 7px 10px; font-size: 11px; cursor: pointer; border-bottom: 1px solid #f0f2f5; }
+.tpl-dd-item:last-child { border-bottom: none; }
+.tpl-dd-item:hover { background: #e8f5e9; }
+.tpl-dd-item.selected { background: #dcf8c6; font-weight: 600; }
+.tpl-dd-empty { padding: 10px; font-size: 11px; color: #999; text-align: center; }
+
 </style>
 </head>
 
@@ -189,7 +211,10 @@ select, .tpanel input { width: 100%; border: 1px solid #dadce0; border-radius: 6
   </button>
   <div class="tgl" id="tglBtn">&#9654; Use Template</div>
   <div class="tpanel" id="tpanel">
-    <select id="tplSel" onchange="onTplChange()"><option value="">— Loading templates... —</option></select>
+    <div class="tpl-dropdown" id="tplDropdown">
+      <input type="text" class="tpl-dd-input" id="tplSearch" placeholder="— Select a template —" onfocus="openTplDD()" oninput="filterTplDD()">
+      <div class="tpl-dd-list" id="tplDDList"></div>
+    </div>
     <div class="tprev" id="tprev"></div>
     <div id="tparams"></div>
     <button class="tsend" onclick="sendTpl()">📨 Send Template</button>
@@ -219,32 +244,55 @@ var _firstLoad = true;
 function _esc(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
 function _waFmt(text) {
-  // First escape HTML
   var s = _esc(text);
-  // Convert newlines to <br>
   s = s.replace(/\n/g, '<br>');
-  // *bold*
   s = s.replace(/\*([^\*]+)\*/g, '<b>$1</b>');
-  // _italic_
   s = s.replace(/\_([^\_]+)\_/g, '<i>$1</i>');
-  // ~strikethrough~
   s = s.replace(/\~([^\~]+)\~/g, '<s>$1</s>');
-  // ```monospace```
   s = s.replace(/\`\`\`([^\`]+)\`\`\`/g, '<code style="background:#e9edef;padding:1px 4px;border-radius:3px;font-size:11px;">$1</code>');
-  // URLs — match http/https links first
-  s = s.replace(/(https?:\/\/[^\s<]+)/g, '<a class="wa-link" href="$1" target="_blank">$1</a>');
-  // Bare domains — word.tld or word.word.tld (not already inside an href)
-  s = s.replace(/(?<!href="|">)((?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+(?:com|org|net|in|io|co|co\.in|edu|gov|info|biz|app|dev|me|xyz|site|online|store|tech|cloud|ai|gl)(?:\/[^\s<]*)?)/g, function(match) {
-    // Skip if already wrapped in a link
-    return '<a class="wa-link" href="https://' + match + '" target="_blank">' + match + '</a>';
+
+  var linkCount = 0;
+  var links = {};
+
+  // Full URLs first
+  s = s.replace(/(https?:\/\/[^\s<]+)/g, function(match) {
+    var key = '%%LINK' + (linkCount++) + '%%';
+    links[key] = '<a class="wa-link" href="' + match + '" target="_blank">' + match + '</a>';
+    return key;
   });
+
+  // Bare domains
+  s = s.replace(/((?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+(?:com|org|net|in|io|co|co\.in|edu|gov|info|biz|app|dev|me|xyz|site|online|store|tech|cloud|ai|gl)(?:\/[^\s<]*)?)/g, function(match) {
+    if (match.indexOf('%%LINK') >= 0) return match;
+    var key = '%%LINK' + (linkCount++) + '%%';
+    links[key] = '<a class="wa-link" href="https://' + match + '" target="_blank">' + match + '</a>';
+    return key;
+  });
+
   // Email addresses
-  s = s.replace(/(?<!href="|">)([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g, '<a class="wa-link" href="mailto:$1">$1</a>');
-  // Phone numbers — 10+ digit numbers with optional + prefix
-  s = s.replace(/(?<!href="|">)(\+?\d[\d\s\-]{8,}\d)/g, '<a class="wa-link" href="tel:$1">$1</a>');
+  s = s.replace(/([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g, function(match) {
+    if (match.indexOf('%%LINK') >= 0) return match;
+    var key = '%%LINK' + (linkCount++) + '%%';
+    links[key] = '<a class="wa-link" href="mailto:' + match + '">' + match + '</a>';
+    return key;
+  });
+
+  // Phone numbers
+  s = s.replace(/(\+?\d[\d\s\-]{8,}\d)/g, function(match) {
+    if (match.indexOf('%%LINK') >= 0) return match;
+    var key = '%%LINK' + (linkCount++) + '%%';
+    links[key] = '<a class="wa-link" href="tel:' + match + '">' + match + '</a>';
+    return key;
+  });
+
+  // Restore all links
+  Object.keys(links).forEach(function(key) { s = s.replace(key, links[key]); });
+
   return s;
 }
+
 function _fmt(ts) {
   if (!ts) return '';
   if (typeof ts === 'string' && /^\d{10,13}$/.test(ts)) {
@@ -314,14 +362,34 @@ function renderMsgs(messages) {
 
     var b = document.createElement('div');
     b.className = 'bubble ' + m.direction + (m.type === 'template' ? ' tpl' : '');
-    // ── Template header image ──
-    if (m.tplImageUrl) {
-      var tph = document.createElement('div');
-      tph.className = 'media-placeholder';
-      tph.textContent = '🖼️ Loading...';
-      b.appendChild(tph);
-      loadMedia(tph, m.tplImageUrl, 'image');
+
+    // ── Template header ──
+    if (m.tplMeta) {
+      if (m.tplMeta.headerType === 'text' && m.tplMeta.headerText) {
+        var hdr = document.createElement('div');
+        hdr.className = 'tpl-header';
+        hdr.textContent = m.tplMeta.headerText;
+        b.appendChild(hdr);
+      } else if (m.tplMeta.headerType === 'image' && m.tplMeta.headerMedia) {
+        var tph = document.createElement('div');
+        tph.className = 'media-placeholder';
+        tph.textContent = '🖼️ Loading...';
+        b.appendChild(tph);
+        loadMedia(tph, m.tplMeta.headerMedia, 'image');
+      } else if (m.tplMeta.headerType === 'video' && m.tplMeta.headerMedia) {
+        var vph = document.createElement('div');
+        vph.className = 'media-placeholder';
+        vph.textContent = '🎬 Loading...';
+        b.appendChild(vph);
+        loadMedia(vph, m.tplMeta.headerMedia, 'video');
+      } else if (m.tplMeta.headerType === 'document' && m.tplMeta.headerMedia) {
+        var dph = document.createElement('div');
+        dph.className = 'media-file';
+        dph.innerHTML = '<span class="mf-icon">📄</span><span class="mf-name">Document</span>';
+        b.appendChild(dph);
+      }
     }
+
     // ── Media content ──
     if (m.mediaType && m.mediaPath) {
       if (m.mediaType === 'image' || m.mediaType === 'sticker') {
@@ -346,10 +414,9 @@ function renderMsgs(messages) {
         loadMedia(ph, m.mediaPath, 'audio');
 
       } else {
-        // Document/PDF
         var fd = document.createElement('div');
         fd.className = 'media-file';
-        var fileName = m.mediaPath.split('/').pop();
+        var fileName = m.mediaName || m.mediaPath.split('/').pop();
         var isPdf = fileName.toLowerCase().indexOf('.pdf') >= 0;
         fd.innerHTML = '<span class="mf-icon">' + (isPdf ? '📕' : '📄') + '</span>'
           + '<span class="mf-name">' + _esc(fileName) + '</span>'
@@ -370,6 +437,39 @@ function renderMsgs(messages) {
       var span = document.createElement('span');
       span.innerHTML = _waFmt(m.text);
       b.appendChild(span);
+    }
+
+    // ── Template footer ──
+    if (m.tplMeta && m.tplMeta.footer) {
+      var ftr = document.createElement('div');
+      ftr.className = 'tpl-footer';
+      ftr.textContent = m.tplMeta.footer;
+      b.appendChild(ftr);
+    }
+
+    // ── Template buttons ──
+    if (m.tplMeta && m.tplMeta.buttons && m.tplMeta.buttons.length > 0) {
+      var btnsWrap = document.createElement('div');
+      btnsWrap.className = 'tpl-buttons';
+      m.tplMeta.buttons.forEach(function(btn) {
+        var btnEl = document.createElement('div');
+        btnEl.className = 'tpl-btn';
+        if (btn.type === 'url' && btn.url) {
+          btnEl.className += ' link';
+          btnEl.innerHTML = '🔗 ' + _esc(btn.text);
+          btnEl.onclick = function() { window.open(btn.url, '_blank'); };
+        } else if (btn.type === 'quick_reply') {
+          btnEl.innerHTML = '↩ ' + _esc(btn.text);
+        } else if (btn.type === 'voice_call' || btn.type === 'call') {
+          btnEl.innerHTML = '📞 ' + _esc(btn.text);
+        } else if (btn.type === 'copy_offer_code') {
+          btnEl.innerHTML = '📋 ' + _esc(btn.text);
+        } else {
+          btnEl.innerHTML = _esc(btn.text);
+        }
+        btnsWrap.appendChild(btnEl);
+      });
+      b.appendChild(btnsWrap);
     }
 
     // ── Timestamp ──
@@ -424,7 +524,7 @@ function replaceWithMedia(el, dataUrl, mediaType) {
       var blob = new Blob([arr], { type: mime });
       var blobUrl = URL.createObjectURL(blob);
       var win = window.open(blobUrl, '_blank');
-      if (!win) openImageViewer(dataUrl); // fallback to overlay if popup blocked
+      setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 10000);
     };
     el.replaceWith(img);
 
@@ -451,65 +551,91 @@ function replaceWithMedia(el, dataUrl, mediaType) {
 function openDocument(path, fileName) {
   var isPdf = fileName.toLowerCase().indexOf('.pdf') >= 0;
 
-  if (!isPdf) {
-    if (_mediaCache[path]) {
+  if (_mediaCache[path]) {
+    if (isPdf) {
+      openInNewTab(_mediaCache[path], fileName);
+    } else {
       downloadFile(_mediaCache[path], fileName);
-      return;
     }
-    toast('Loading ' + fileName + '...');
-    google.script.run
-      .withSuccessHandler(function(r) {
-        if (r && r.ok) {
-          _mediaCache[path] = r.data;
-          downloadFile(r.data, fileName);
-        } else {
-          toast('\u26A0\uFE0F Could not load file');
-        }
-      })
-      .withFailureHandler(function(e) { toast('\u26A0\uFE0F ' + e.message); })
-      .getWatiMedia(path);
     return;
   }
 
-  toast('Opening PDF...');
+  toast('Loading ' + fileName + '...');
+  try {
+    var win = window.open('', '_blank');
+    win.document.write('<html><head><title>' + _esc(fileName) + '</title>' +
+          '<style>body{margin:0;overflow:hidden;}</style></head><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#f0f2f5;font-family:sans-serif;color:#667781;"><div style="text-align:center;"><div style="font-size:80px;margin-bottom:12px;">📄</div><div style="font-size:40px;">Loading...</div></div></body></html>');
+  } catch (e) {
+    win = null;
+  }
+
   google.script.run
     .withSuccessHandler(function(r) {
       if (r && r.ok) {
-        openPdfViewer(r.viewUrl, fileName);
+        _mediaCache[path] = r.data;
+        var parts = r.data.split(',');
+        var mime = parts[0].match(/:(.*?);/)[1];
+        var raw = atob(parts[1]);
+        var arr = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+        var blob = new Blob([arr], { type: mime });
+        var blobUrl = URL.createObjectURL(blob);
+        try {
+          win.location = blobUrl;
+          var titleAttempts = 0;
+          var titleInterval = setInterval(function() {
+            try {
+              win.document.title = fileName;
+              titleAttempts++;
+              if (titleAttempts > 5) clearInterval(titleInterval);
+            } catch(e) {
+              clearInterval(titleInterval);
+            }
+          }, 500);
+          setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 10000);
+        } catch (e) {
+          toast('Popup blocked — downloading instead');
+          downloadFile(r.data, fileName);
+        }
       } else {
-        toast('\u26A0\uFE0F Could not open PDF');
+        try { win.close(); } catch(e) {}
+        toast('\u26A0\uFE0F Could not load file');
       }
     })
-    .withFailureHandler(function(e) { toast('\u26A0\uFE0F ' + e.message); })
-    .getWatiPdfViewUrl(path);
+    .withFailureHandler(function(e) {
+      try { win.close(); } catch(ex) {}
+      toast('\u26A0\uFE0F ' + e.message);
+    })
+    .getWatiMedia(path);
 }
 
-function openPdfViewer(viewUrl, fileName) {
-  var existing = document.getElementById('pdfOverlay');
-  if (existing) existing.remove();
-
-  var overlay = document.createElement('div');
-  overlay.className = 'pdf-overlay';
-  overlay.id = 'pdfOverlay';
-
-  var header = document.createElement('div');
-  header.className = 'pdf-header';
-  header.innerHTML = '<span>\uD83D\uDCD5 ' + _esc(fileName) + '</span>';
-
-  var closeBtn = document.createElement('button');
-  closeBtn.className = 'pdf-close';
-  closeBtn.textContent = '\u2715';
-  closeBtn.onclick = function() { overlay.remove(); };
-  header.appendChild(closeBtn);
-
-  var iframe = document.createElement('iframe');
-  iframe.className = 'pdf-frame';
-  iframe.src = viewUrl;
-  iframe.setAttribute('allow', 'autoplay');
-
-  overlay.appendChild(header);
-  overlay.appendChild(iframe);
-  document.body.appendChild(overlay);
+function openInNewTab(dataUrl, fileName) {
+  var parts = dataUrl.split(',');
+  var mime = parts[0].match(/:(.*?);/)[1];
+  var raw = atob(parts[1]);
+  var arr = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  var blob = new Blob([arr], { type: mime });
+  var blobUrl = URL.createObjectURL(blob);
+  try {
+    var win = window.open('', '_blank');
+    win.location = blobUrl;
+    // Attempt to set title after PDF loads
+    var titleAttempts = 0;
+    var titleInterval = setInterval(function() {
+      try {
+        win.document.title = fileName;
+        titleAttempts++;
+        if (titleAttempts > 5) clearInterval(titleInterval);
+      } catch(e) {
+        clearInterval(titleInterval);
+      }
+    }, 500);
+    setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 10000);
+  } catch (e) {
+    toast('Popup blocked — downloading instead');
+    downloadFile(dataUrl, fileName);
+  }
 }
 
 function downloadFile(dataUrl, fileName) {
@@ -519,6 +645,8 @@ function downloadFile(dataUrl, fileName) {
   a.click();
 }
 
+
+/* ── Image Viewer Overlay in Sidebar no new tab (not currently used — kept for future use if needed) ── */
 function openImageViewer(dataUrl) {
   var existing = document.getElementById('imgOverlay');
   if (existing) existing.remove();
@@ -648,7 +776,7 @@ function sendMsg() {
   var wrap = document.getElementById('msgs');
   var b = document.createElement('div');
   b.className = 'bubble out optimistic';
-  b.innerHTML = _esc(text).replace(/\n/g, '<br>') + '<span class="btime">Sending\u2026</span>';
+  b.innerHTML = _waFmt(text) + '<span class="btime">Sending\u2026</span>';
   wrap.appendChild(b); wrap.scrollTop = wrap.scrollHeight;
 
   google.script.run
@@ -688,46 +816,100 @@ document.getElementById('tglBtn').addEventListener('click', function() {
 });
 
 function loadTpls() {
-  document.getElementById('tplSel').innerHTML = '<option value="">\u2014 Loading\u2026 \u2014</option>';
+  document.getElementById('tplSearch').placeholder = '\u2014 Loading\u2026 \u2014';
   google.script.run
     .withSuccessHandler(function(r) {
       _tpls = r.templates || [];
-      var sel = document.getElementById('tplSel');
-      sel.innerHTML = '<option value="">\u2014 Select a template \u2014</option>';
-      _tpls.forEach(function(t, i) {
-        sel.innerHTML += '<option value="' + i + '">' + _esc(t.name) + '</option>';
-      });
+      document.getElementById('tplSearch').placeholder = '\uD83D\uDD0D Search templates...';
       if (!_tpls.length) toast('No approved templates found');
+      if (_tpls.length) filterTplDD();
     })
     .withFailureHandler(function(e) { toast('Could not load templates: ' + e.message); })
     .fetchWatiTemplates();
 }
 
-function onTplChange() {
-  var idx  = document.getElementById('tplSel').value;
+var _selectedTplIdx = null;
+
+function openTplDD() {
+  var list = document.getElementById('tplDDList');
+  if (!_tpls.length) { loadTpls(); return; }
+  filterTplDD();
+  list.classList.add('open');
+}
+
+function closeTplDD() {
+  setTimeout(function() {
+    document.getElementById('tplDDList').classList.remove('open');
+  }, 150);
+}
+
+function filterTplDD() {
+  var query = document.getElementById('tplSearch').value.toLowerCase().trim();
+  var list = document.getElementById('tplDDList');
+  list.innerHTML = '';
+  var count = 0;
+
+  _tpls.forEach(function(t, i) {
+    if (!query || t.name.toLowerCase().indexOf(query) >= 0) {
+      var item = document.createElement('div');
+      item.className = 'tpl-dd-item' + (i === _selectedTplIdx ? ' selected' : '');
+      item.textContent = t.name;
+      item.setAttribute('data-idx', i);
+      item.onclick = function() { selectTpl(parseInt(this.getAttribute('data-idx'))); };
+      list.appendChild(item);
+      count++;
+    }
+  });
+
+  if (count === 0) {
+    list.innerHTML = '<div class="tpl-dd-empty">No templates found</div>';
+  }
+  list.classList.add('open');
+}
+
+function selectTpl(idx) {
+  _selectedTplIdx = idx;
+  var t = _tpls[idx];
+  document.getElementById('tplSearch').value = t.name;
+  document.getElementById('tplDDList').classList.remove('open');
+
+  // Show preview and params
   var prev = document.getElementById('tprev');
-  var pp   = document.getElementById('tparams');
-  if (idx === '') { prev.style.display = 'none'; pp.innerHTML = ''; return; }
-  var t = _tpls[parseInt(idx)];
-  prev.textContent = t.body; prev.style.display = 'block';
+  var pp = document.getElementById('tparams');
+  prev.textContent = t.bodyOriginal || t.body;
+  prev.style.display = 'block';
   pp.innerHTML = '';
-  for (var i = 1; i <= t.params; i++) {
-    pp.innerHTML += '<input type="text" placeholder="Parameter ' + i + '" id="tp' + i + '">';
+  for (var i = 0; i < t.paramNames.length; i++) {
+    pp.innerHTML += '<input type="text" placeholder="' + _esc(t.paramNames[i]) + '" id="tp' + (i + 1) + '">';
   }
 }
 
-function sendTpl() {
-  var idx = document.getElementById('tplSel').value;
-  if (idx === '') { toast('Select a template first'); return; }
-  var t = _tpls[parseInt(idx)], params = [];
-  for (var i = 1; i <= t.params; i++) {
-    var el = document.getElementById('tp' + i);
-    var v  = el ? el.value.trim() : '';
-    if (!v) { toast('Fill all ' + t.params + ' parameter(s)'); return; }
-    params.push({ name: String(i), value: v });
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  var dd = document.getElementById('tplDropdown');
+  if (!dd.contains(e.target)) {
+    document.getElementById('tplDDList').classList.remove('open');
   }
+});
+
+function sendTpl() {
+  if (_selectedTplIdx === null) { toast('Select a template first'); return; }
+  var t = _tpls[_selectedTplIdx], params = [];
+  for (var i = 0; i < t.paramNames.length; i++) {
+    var el = document.getElementById('tp' + (i + 1));
+    var v  = el ? el.value.trim() : '';
+    if (!v) { toast('Fill all parameter(s)'); return; }
+    params.push({ name: t.paramNames[i], value: v });
+  }
+
+  var btn = document.querySelector('.tsend');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
   google.script.run
     .withSuccessHandler(function(r) {
+      btn.disabled = false;
+      btn.textContent = '📨 Send Template';
       if (r && r.ok) {
         toast('\u2705 Template sent');
         var wrap = document.getElementById('msgs');
@@ -735,11 +917,19 @@ function sendTpl() {
         b.className = 'bubble out tpl';
         b.innerHTML = '[Template: ' + _esc(t.name) + '] <span class="btime">Sent \u2713</span>';
         wrap.appendChild(b); wrap.scrollTop = wrap.scrollHeight;
+        _selectedTplIdx = null;
+        document.getElementById('tplSearch').value = '';
+        document.getElementById('tprev').style.display = 'none';
+        document.getElementById('tparams').innerHTML = '';
       } else {
         toast('\u274C ' + ((r && r.error) || 'Template send failed'));
       }
     })
-    .withFailureHandler(function(e) { toast('\u274C ' + e.message); })
+    .withFailureHandler(function(e) {
+      btn.disabled = false;
+      btn.textContent = '📨 Send Template';
+      toast('\u274C ' + e.message);
+    })
     .sendWatiTemplate(LEAD.number, t.name, params);
 }
 
