@@ -23,7 +23,7 @@ var _PROPERTY_SCHEMA = {
   CLOUD_FUNCTION_URL: 'CLOUD_FUNCTION_URL',
   FIREBASE_URL:       'FIREBASE_DATABASE_URL',  // ← Different storage key
   FIREBASE_SECRET:    'FIREBASE_SECRET',
-  SMARTFLO_C2C_TOKEN:     'SMARTFLO_TOKEN',
+  SMARTFLO_C2C_TOKEN: 'SMARTFLO_TOKEN',
   WATI_BASE_URL:      'WATI_BASE_URL',
   WATI_BEARER_TOKEN:  'WATI_BEARER_TOKEN',
   WATI_TENANT_ID:     'WATI_TENANT_ID',
@@ -89,7 +89,7 @@ CRM.SOURCES = [
 ];
 
 CRM.STATUSES = [
-  'Lead', 'Follow-up', 'Interested', 'Not Interested',
+  'Lead', 'Follow-Up', 'Interested', 'Not Interested',
   'Converted', 'MC Online Batch', 'MC Offline Batch',
 ];
 
@@ -171,10 +171,30 @@ CRM.SERIAL_OFFSET = 230000;
 
 // ── Defaults ─────────────────────────────────────────────────
 CRM.DEFAULTS = {
-  STATUS:  'Lead',
-  INQUIRY: 'CGI',
-  TEAM:    'Not Assigned',
+  STATUS:     'Lead',
+  INQUIRY:    'CGI',
+  TEAM:       'Not Assigned',
+  ROBO_AGENT: 'ROBO',
+  FOLLOW_UP:  'Follow-up',
 };
+
+// ── Column Letter Map (auto-generated from CRM.COL) ──────────
+CRM.COL_LETTER = {};
+(function() {
+  function _colLetter(idx) {
+    var letter = '';
+    var n = idx;
+    while (n >= 0) {
+      letter = String.fromCharCode(65 + (n % 26)) + letter;
+      n = Math.floor(n / 26) - 1;
+    }
+    return letter;
+  }
+  var keys = Object.keys(CRM.COL);
+  for (var i = 0; i < keys.length; i++) {
+    CRM.COL_LETTER[keys[i]] = _colLetter(CRM.COL[keys[i]]);
+  }
+})();
 
 
 /**

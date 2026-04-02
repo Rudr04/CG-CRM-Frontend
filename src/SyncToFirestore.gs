@@ -119,7 +119,7 @@ function _getEditorFromTeamColumn(sheet, row) {
     var teamValue = sheet.getRange(row, CRM.COL.TEAM + 1).getValue();
     
     // Skip non-agent values
-    if (!teamValue || teamValue === 'Not Assigned' || teamValue === 'ROBO') {
+    if (!teamValue || teamValue === CRM.DEFAULTS.TEAM || teamValue === CRM.DEFAULTS.ROBO_AGENT) {
       return null;
     }
     

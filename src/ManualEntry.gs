@@ -37,7 +37,7 @@ function submitInquiry(formData) {
       waId:       waId,
       email:      formData.email || '',
       location:   formData.state || '',
-      inquiry:    formData.inquiry || 'CGI',
+      inquiry:    formData.inquiry || CRM.DEFAULTS.INQUIRY,
       product:    formData.product || '',
       source:     formData.source,
       team:       formData.agent,
@@ -141,15 +141,15 @@ function _addInquiryToSheet(payload) {
     row[C.NAME]       = payload.senderName;
     row[C.NUMBER]     = payload.waId;
     row[C.LOCATION]   = payload.location;
-    row[C.INQUIRY]    = payload.inquiry || 'CGI';
+    row[C.INQUIRY]    = payload.inquiry || CRM.DEFAULTS.INQUIRY;
     row[C.PRODUCT]    = payload.product || '';
     row[C.SOURCE]     = payload.source;
     row[C.TEAM]       = payload.team;
     row[C.STATUS]     = CRM.DEFAULTS.STATUS;
     row[C.REMARK]     = payload.remark;
-    row[C.DAY]        = '=IFERROR(WEEKDAY($B' + newRow + ',2)&TEXT($B' + newRow + ',"dddd"), "")';
-    row[C.HOURS]      = '=IFERROR(HOUR($C' + newRow + '), "")';
-    row[C.CONVERTED]  = '=SWITCH(L' + newRow + ',"Admission Done",1,"Fees Received",1,"Ahm GrpJoined",1,"Online GrpJoined",1,0)';
+    row[C.DAY]        = '=IFERROR(WEEKDAY($' + CRM.COL_LETTER.DATE + newRow + ',2)&TEXT($' + CRM.COL_LETTER.DATE + newRow + ',"dddd"), "")';
+    row[C.HOURS]      = '=IFERROR(HOUR($' + CRM.COL_LETTER.TIME + newRow + '), "")';
+    row[C.CONVERTED]  = '=SWITCH(' + CRM.COL_LETTER.STATUS + newRow + ',"Admission Done",1,"Seat Booked",1,0)';
 
     sheet.appendRow(row);
     SpreadsheetApp.flush();

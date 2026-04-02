@@ -205,7 +205,7 @@ function _logCallToRow(sheet, rowIndex, agentName, agentPhone) {
     // Auto-bump Lead → Follow-up
     var statusCell = sheet.getRange(rowIndex, C.STATUS + 1);
     if ((statusCell.getValue() || '').toString() === CRM.DEFAULTS.STATUS) {
-      statusCell.setValue('Follow-up');
+      statusCell.setValue(CRM.DEFAULTS.FOLLOW_UP);
     }
   } catch (e) {
     console.error('_logCallToRow: ' + e.message);
