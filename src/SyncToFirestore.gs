@@ -61,24 +61,31 @@ function onSheetEditSync(e) {
 
     var edits = [];
 
+    // Batch-read entire affected area in ONE I/O call
+    var lastCol = sheet.getLastColumn();
+    var affectedData = sheet.getRange(startRow, 1, numRows, lastCol).getDisplayValues();
+
     for (var r = 0; r < numRows; r++) {
       var row = startRow + r;
+      var rowData = affectedData[r];
 
       for (var c = 0; c < numCols; c++) {
         var col = startCol + c;
         var fieldName = CRM.SYNC.TRACKED_COLS[col];
         if (!fieldName) continue;
 
-        var phone = sheet.getRange(row, CRM.COL.NUMBER + 1).getValue();
+        // CRM.COL values are 0-based, rowData is 0-based — direct index
+        var phone = (rowData[CRM.COL.NUMBER] || '').toString().trim();
         if (!phone) continue;
 
-        var newValue = sheet.getRange(row, col).getDisplayValue();
+        // col is 1-based (from e.range.getColumn()), rowData is 0-based — subtract 1
+        var newValue = rowData[col - 1] || '';
         var oldValue = (numRows === 1 && numCols === 1 && e.oldValue !== undefined)
           ? e.oldValue : null;
 
         edits.push({
           row:       row,
-          phone:     phone.toString().trim(),
+          phone:     phone,
           field:     fieldName,
           oldValue:  oldValue,
           newValue:  newValue,
@@ -86,12 +93,12 @@ function onSheetEditSync(e) {
           timestamp: new Date().getTime(),
           retryCount: 0,
           rowData: {
-            name:     sheet.getRange(row, CRM.COL.NAME + 1).getValue() || '',
-            team:     sheet.getRange(row, CRM.COL.TEAM + 1).getValue() || '',
-            status:   sheet.getRange(row, CRM.COL.STATUS + 1).getValue() || '',
-            location: sheet.getRange(row, CRM.COL.LOCATION + 1).getValue() || '',
-            inquiry:  sheet.getRange(row, CRM.COL.INQUIRY + 1).getValue() || '',
-            product:  sheet.getRange(row, CRM.COL.PRODUCT + 1).getValue() || '',
+            name:     rowData[CRM.COL.NAME] || '',
+            team:     rowData[CRM.COL.TEAM] || '',
+            status:   rowData[CRM.COL.STATUS] || '',
+            location: rowData[CRM.COL.LOCATION] || '',
+            inquiry:  rowData[CRM.COL.INQUIRY] || '',
+            product:  rowData[CRM.COL.PRODUCT] || '',
           },
         });
       }
