@@ -175,7 +175,7 @@ CRM.DEFAULTS = {
   INQUIRY:    'CGI',
   TEAM:       'Not Assigned',
   ROBO_AGENT: 'ROBO',
-  FOLLOW_UP:  'Follow-up',
+  FOLLOW_UP:  'Follow-Up',
 };
 
 // ── Column Letter Map (auto-generated from CRM.COL) ──────────
