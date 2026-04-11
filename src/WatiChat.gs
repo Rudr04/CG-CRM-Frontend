@@ -342,29 +342,28 @@ function _getTemplateHeaderMap() {
 
 function updateLeadStatusFromChat(rowIndex, newStatus, appendRemark) {
   try {
-    var C     = CRM.COL;
     var sheet = getSheet(CRM.SHEETS.DSR);
+    var M     = getColumnMap(sheet);
     var edits = [];
     var editor = Session.getEffectiveUser().getEmail() || 'chat_sidebar';
 
-    // Single read for entire row (1 API call instead of 8+)
-    var lastCol = Math.max(C.NUMBER, C.NAME, C.TEAM, C.STATUS, C.LOCATION, C.INQUIRY, C.PRODUCT, C.REMARK) + 1;
+    var lastCol = sheet.getLastColumn();
     var rowValues = sheet.getRange(rowIndex, 1, 1, lastCol).getValues()[0];
 
-    var phone = (rowValues[C.NUMBER] || '').toString().trim();
+    var phone = (M.number !== undefined) ? (rowValues[M.number] || '').toString().trim() : '';
 
     var rowData = {
-      name:     (rowValues[C.NAME]     || '').toString(),
-      team:     (rowValues[C.TEAM]     || '').toString(),
-      status:   newStatus || (rowValues[C.STATUS] || '').toString(),
-      location: (rowValues[C.LOCATION] || '').toString(),
-      inquiry:  (rowValues[C.INQUIRY]  || '').toString(),
-      product:  (rowValues[C.PRODUCT]  || '').toString(),
+      name:     (M.name !== undefined)     ? (rowValues[M.name]     || '').toString() : '',
+      team:     (M.team !== undefined)     ? (rowValues[M.team]     || '').toString() : '',
+      status:   newStatus || ((M.status !== undefined) ? (rowValues[M.status] || '').toString() : ''),
+      location: (M.location !== undefined) ? (rowValues[M.location] || '').toString() : '',
+      inquiry:  (M.inquiry !== undefined)  ? (rowValues[M.inquiry]  || '').toString() : '',
+      product:  (M.product !== undefined)  ? (rowValues[M.product]  || '').toString() : '',
     };
 
-    if (newStatus) {
-      var oldStatus = (rowValues[C.STATUS] || '').toString();
-      sheet.getRange(rowIndex, C.STATUS + 1).setValue(newStatus);
+    if (newStatus && M.status !== undefined) {
+      var oldStatus = (rowValues[M.status] || '').toString();
+      sheet.getRange(rowIndex, M.status + 1).setValue(newStatus);
 
       if (phone) {
         edits.push({
@@ -381,10 +380,11 @@ function updateLeadStatusFromChat(rowIndex, newStatus, appendRemark) {
       }
     }
 
-    if (appendRemark && appendRemark.trim()) {
-      var current = (rowValues[C.REMARK] || '').toString().trim();
-      var combined = current ? (current + ' | ' + appendRemark.trim()) : appendRemark.trim();
-      sheet.getRange(rowIndex, C.REMARK + 1).setValue(combined);
+    if (appendRemark && appendRemark.trim() && M.remark !== undefined) {
+      var current = (rowValues[M.remark] || '').toString().trim();
+      var combined = current ?
+        (current + ' | ' + appendRemark.trim()) : appendRemark.trim();
+      sheet.getRange(rowIndex, M.remark + 1).setValue(combined);
 
       if (phone) {
         edits.push({

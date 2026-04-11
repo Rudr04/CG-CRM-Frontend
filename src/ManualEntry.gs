@@ -124,9 +124,10 @@ function _sendToCloudFunction(payload) {
 /** Fallback: write directly to sheet when Cloud Function is unreachable */
 function _addInquiryToSheet(payload) {
   try {
-    var C = CRM.COL;
     var sheet = getSheet(CRM.SHEETS.DSR);
     var newRow = sheet.getLastRow() + 1;
+    var M = getColumnMap(sheet);
+    var lastCol = sheet.getLastColumn();
 
     var now  = new Date();
     var date = Utilities.formatDate(now, Session.getScriptTimeZone(), 'MM/dd/yyyy');
@@ -134,22 +135,43 @@ function _addInquiryToSheet(payload) {
     var time = [ist.getHours(), ist.getMinutes(), ist.getSeconds()]
       .map(function(n) { return String(n).padStart(2, '0'); }).join(':');
 
-    var row = new Array(C.PIPELINE_STAGE + 1).fill('');
-    row[C.CGID]       = '=ROW()-1+' + CRM.SERIAL_OFFSET;
-    row[C.DATE]       = date;
-    row[C.TIME]       = time;
-    row[C.NAME]       = payload.senderName;
-    row[C.NUMBER]     = payload.waId;
-    row[C.LOCATION]   = payload.location;
-    row[C.INQUIRY]    = payload.inquiry || CRM.DEFAULTS.INQUIRY;
-    row[C.PRODUCT]    = payload.product || '';
-    row[C.SOURCE]     = payload.source;
-    row[C.TEAM]       = payload.team;
-    row[C.STATUS]     = CRM.DEFAULTS.STATUS;
-    row[C.REMARK]     = payload.remark;
-    row[C.DAY]        = '=IFERROR(WEEKDAY($' + CRM.COL_LETTER.DATE + newRow + ',2)&TEXT($' + CRM.COL_LETTER.DATE + newRow + ',"dddd"), "")';
-    row[C.HOURS]      = '=IFERROR(HOUR($' + CRM.COL_LETTER.TIME + newRow + '), "")';
-    row[C.CONVERTED]  = '=SWITCH(' + CRM.COL_LETTER.STATUS + newRow + ',"Admission Done",1,"Seat Booked",1,0)';
+    function _colLetter(idx) {
+      var letter = '';
+      var n = idx;
+      while (n >= 0) {
+        letter = String.fromCharCode(65 + (n % 26)) + letter;
+        n = Math.floor(n / 26) - 1;
+      }
+      return letter;
+    }
+
+    var row = new Array(lastCol).fill('');
+    var set = function(fieldKey, value) {
+      if (M[fieldKey] !== undefined) row[M[fieldKey]] = value;
+    };
+
+    set('cgid',     '=ROW()-1+' + CRM.SERIAL_OFFSET);
+    set('date',     date);
+    set('time',     time);
+    set('name',     payload.senderName);
+    set('number',   payload.waId);
+    set('location', payload.location);
+    set('inquiry',  payload.inquiry || CRM.DEFAULTS.INQUIRY);
+    set('product',  payload.product || '');
+    set('source',   payload.source);
+    set('team',     payload.team);
+    set('status',   CRM.DEFAULTS.STATUS);
+    set('remark',   payload.remark);
+
+    if (M.date !== undefined && M.time !== undefined && M.status !== undefined) {
+      var dateLetter   = _colLetter(M.date);
+      var timeLetter   = _colLetter(M.time);
+      var statusLetter = _colLetter(M.status);
+
+      set('day',       '=IFERROR(WEEKDAY($' + dateLetter + newRow + ',2)&TEXT($' + dateLetter + newRow + ',"dddd"), "")');
+      set('hours',     '=IFERROR(HOUR($' + timeLetter + newRow + '), "")');
+      set('converted', '=SWITCH(' + statusLetter + newRow + ',"Admission Done",1,"Seat Booked",1,0)');
+    }
 
     sheet.appendRow(row);
     SpreadsheetApp.flush();

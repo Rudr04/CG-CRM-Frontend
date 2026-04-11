@@ -49,23 +49,36 @@ function openAdminSetup() {
 
 
 function openCallLog() {
-  var C = CRM.COL;
   var sheet = getSheet(CRM.SHEETS.DSR);
   if (!sheet) { SpreadsheetApp.getUi().alert(CRM.SHEETS.DSR + ' not found'); return; }
 
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) { SpreadsheetApp.getUi().alert('No data yet.'); return; }
 
-  var data = sheet.getRange(2, 1, lastRow - 1, C.REMARK + 2).getValues();
+  var M = getColumnMap(sheet);
+  var lastCol = sheet.getLastColumn();
+  var data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
 
-  // Filter rows that have call log entries (📞 marker)
+  // Filter rows that have call log entries (📞 marker in Remark)
+  var remarkIdx = M.remark;
   var called = data
-    .filter(function(r) { return (r[C.REMARK] || '').toString().indexOf('📞') >= 0; })
+    .filter(function(r) {
+      return remarkIdx !== undefined && (r[remarkIdx] || '').toString().indexOf('📞') >= 0;
+    })
     .slice(-30).reverse();
+
+  // Build COL map for HTML template (uppercase keys, 0-based indices)
+  var colForTpl = {
+    NAME:   M.name,
+    NUMBER: M.number,
+    TEAM:   M.team,
+    STATUS: M.status,
+    ACTION: M.remark,
+  };
 
   var tpl = HtmlService.createTemplateFromFile('CallLog');
   tpl.called = called;
-  tpl.COL    = C;
+  tpl.COL    = colForTpl;
 
   SpreadsheetApp.getUi().showSidebar(
     tpl.evaluate().setTitle('📊 Call Log').setWidth(520));
@@ -76,11 +89,12 @@ function openCallLog() {
 
 function triggerC2CCall(rowIndex) {
   try {
-    var C = CRM.COL;
     var sheet = getSheet(CRM.SHEETS.DSR);
-    var rowData = sheet.getRange(rowIndex, 1, 1, 20).getValues()[0];
-    var leadNumber = (rowData[C.NUMBER] || '').toString().trim();
-    var leadName   = (rowData[C.NAME]   || '').toString().trim() || 'Lead';
+    var M = getColumnMap(sheet);
+    var lastCol = sheet.getLastColumn();
+    var rowData = sheet.getRange(rowIndex, 1, 1, lastCol).getValues()[0];
+    var leadNumber = (M.number !== undefined) ? (rowData[M.number] || '').toString().trim() : '';
+    var leadName   = (M.name   !== undefined) ? ((rowData[M.name] || '').toString().trim() || 'Lead') : 'Lead';
 
     if (!leadNumber) throw new Error('No phone number in row ' + rowIndex);
 
@@ -194,18 +208,22 @@ function _callSmartfloC2C(agentNumber, destinationNumber) {
 
 function _logCallToRow(sheet, rowIndex, agentName, agentPhone) {
   try {
-    var C     = CRM.COL;
+    var M = getColumnMap(sheet);
     var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yy HH:mm');
     var entry = '📞 ' + stamp + ' — ' + agentName + ' (' + agentPhone + ')';
 
-    var cell    = sheet.getRange(rowIndex, C.REMARK + 1);
-    var current = (cell.getValue() || '').toString().trim();
-    cell.setValue(current ? current + ' | ' + entry : entry).setWrap(true);
+    if (M.remark !== undefined) {
+      var cell    = sheet.getRange(rowIndex, M.remark + 1);
+      var current = (cell.getValue() || '').toString().trim();
+      cell.setValue(current ? current + ' | ' + entry : entry).setWrap(true);
+    }
 
     // Auto-bump Lead → Follow-up
-    var statusCell = sheet.getRange(rowIndex, C.STATUS + 1);
-    if ((statusCell.getValue() || '').toString() === CRM.DEFAULTS.STATUS) {
-      statusCell.setValue(CRM.DEFAULTS.FOLLOW_UP);
+    if (M.status !== undefined) {
+      var statusCell = sheet.getRange(rowIndex, M.status + 1);
+      if ((statusCell.getValue() || '').toString() === CRM.DEFAULTS.STATUS) {
+        statusCell.setValue(CRM.DEFAULTS.FOLLOW_UP);
+      }
     }
   } catch (e) {
     console.error('_logCallToRow: ' + e.message);

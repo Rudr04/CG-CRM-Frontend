@@ -9,7 +9,7 @@
 //  - Time-based trigger retries failed syncs every minute
 //  - Max 3 retries per edit, then logged and discarded
 //
-//  All config pulled from CRM.SYNC / CRM.COL / CRM.PROPS — nothing local.
+//  All config pulled from CRM.SYNC / CRM.FIELD_HEADERS / CRM.PROPS — nothing local.
 // ============================================================================
 
 
@@ -65,41 +65,62 @@ function onSheetEditSync(e) {
     var lastCol = sheet.getLastColumn();
     var affectedData = sheet.getRange(startRow, 1, numRows, lastCol).getDisplayValues();
 
+    // Read header row ONCE for this edit event
+    var headerRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+
+    // Find phone column index ONCE (0-based)
+    var phoneColIdx = -1;
+    for (var h = 0; h < headerRow.length; h++) {
+      if ((headerRow[h] || '').toString().trim() === CRM.FIELD_HEADERS.number) {
+        phoneColIdx = h;
+        break;
+      }
+    }
+    if (phoneColIdx === -1) {
+      console.error('[Sync] "' + CRM.FIELD_HEADERS.number + '" header not found — aborting');
+      return;
+    }
+
     for (var r = 0; r < numRows; r++) {
       var row = startRow + r;
       var rowData = affectedData[r];
 
       for (var c = 0; c < numCols; c++) {
-        var col = startCol + c;
-        var fieldName = CRM.SYNC.TRACKED_COLS[col];
+        var col = startCol + c;  // 1-based column number
+
+        // Dynamic: look up header text for this column, then check if tracked
+        var headerText = (headerRow[col - 1] || '').toString().trim();  // col is 1-based, headerRow is 0-based
+        var fieldName = CRM.SYNC.TRACKED_HEADERS[headerText];
         if (!fieldName) continue;
 
-        // CRM.COL values are 0-based, rowData is 0-based — direct index
-        var phone = (rowData[CRM.COL.NUMBER] || '').toString().trim();
+        var phone = (rowData[phoneColIdx] || '').toString().trim();
         if (!phone) continue;
 
-        // col is 1-based (from e.range.getColumn()), rowData is 0-based — subtract 1
+        // col is 1-based, rowData is 0-based — subtract 1
         var newValue = rowData[col - 1] || '';
         var oldValue = (numRows === 1 && numCols === 1 && e.oldValue !== undefined)
-          ? e.oldValue : null;
+          ? e.oldValue : '';
+
+        if (newValue === oldValue) continue;
+
+        // Build rowData object with field keys for the CF
+        var rowDataObj = {};
+        for (var hi = 0; hi < headerRow.length; hi++) {
+          var hText = (headerRow[hi] || '').toString().trim();
+          var fKey = CRM.HEADER_TO_FIELD[hText];
+          if (fKey) rowDataObj[fKey] = (rowData[hi] || '').toString();
+        }
 
         edits.push({
-          row:       row,
-          phone:     phone,
-          field:     fieldName,
-          oldValue:  oldValue,
-          newValue:  newValue,
-          action:    CRM.SYNC.HISTORY_ACTIONS[fieldName] || 'field_updated',
-          timestamp: new Date().getTime(),
+          row:        row,
+          phone:      phone,
+          field:      fieldName,
+          oldValue:   oldValue,
+          newValue:   newValue,
+          action:     CRM.SYNC.HISTORY_ACTIONS[fieldName] || 'field_updated',
+          timestamp:  new Date().getTime(),
           retryCount: 0,
-          rowData: {
-            name:     rowData[CRM.COL.NAME] || '',
-            team:     rowData[CRM.COL.TEAM] || '',
-            status:   rowData[CRM.COL.STATUS] || '',
-            location: rowData[CRM.COL.LOCATION] || '',
-            inquiry:  rowData[CRM.COL.INQUIRY] || '',
-            product:  rowData[CRM.COL.PRODUCT] || '',
-          },
+          rowData:    rowDataObj,
         });
       }
     }
@@ -123,17 +144,17 @@ function onSheetEditSync(e) {
  */
 function _getEditorFromTeamColumn(sheet, row) {
   try {
-    var teamValue = sheet.getRange(row, CRM.COL.TEAM + 1).getValue();
-    
-    // Skip non-agent values
+    var M = getColumnMap(sheet);
+    if (M.team === undefined) return null;
+    var teamValue = sheet.getRange(row, M.team + 1).getValue();
+
     if (!teamValue || teamValue === CRM.DEFAULTS.TEAM || teamValue === CRM.DEFAULTS.ROBO_AGENT) {
       return null;
     }
-    
-    // Look up in Agent_Config by name
+
     var agent = getAgentByName(teamValue);
     return agent ? agent.email : null;
-    
+
   } catch (err) {
     console.error('[Sync] _getEditorFromTeamColumn error: ' + err);
     return null;
@@ -435,8 +456,8 @@ function setupSyncTrigger() {
     .everyMinutes(1)
     .create();
 
-    var trackedList = Object.keys(CRM.SYNC.TRACKED_COLS).map(function(colNum) {
-      return '• Col ' + String.fromCharCode(64 + parseInt(colNum)) + ' → ' + CRM.SYNC.TRACKED_COLS[colNum];
+    var trackedList = Object.keys(CRM.SYNC.TRACKED_HEADERS).map(function(header) {
+      return '• ' + header + ' → ' + CRM.SYNC.TRACKED_HEADERS[header];
     }).join('\n');
 
     ui.alert('⚡ Sync Activated!',
@@ -500,9 +521,9 @@ function checkSyncTriggerStatus() {
   var sp = PropertiesService.getScriptProperties();
   var queue = JSON.parse(sp.getProperty(SYNC_CONFIG.QUEUE_KEY) || '[]');
 
-  // Build tracked columns list
-  var trackedList = Object.keys(CRM.SYNC.TRACKED_COLS).map(function(colNum) {
-    return '• Col ' + String.fromCharCode(64 + parseInt(colNum)) + ' → ' + CRM.SYNC.TRACKED_COLS[colNum];
+  // Build tracked headers list
+  var trackedList = Object.keys(CRM.SYNC.TRACKED_HEADERS).map(function(header) {
+    return '• ' + header + ' → ' + CRM.SYNC.TRACKED_HEADERS[header];
   }).join('\n');
 
   var status = 

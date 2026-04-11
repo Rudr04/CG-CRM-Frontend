@@ -67,43 +67,70 @@ function formatDisplayNumber(raw) {
 // ── Lead Data Reader ───────────────────────────────────────────
 
 /**
- * Read lead data from a DSR row.
- * @param {Sheet} sheet  The DSR sheet object
+ * Read lead data from a row using dynamic header positions.
+ * Works on any sheet regardless of column order.
+ * @param {Sheet} sheet  The sheet object
  * @param {number} rowIndex  1-based row number
  * @returns {Object|null}  Lead object, or null (with alert) if no phone
  */
 function getLeadData(sheet, rowIndex) {
-  var C = CRM.COL;
-  var d = sheet.getRange(rowIndex, 1, 1, C.PIPELINE_STAGE + 1).getValues()[0];
-  var number = (d[C.NUMBER] || '').toString().trim();
+  var M = getColumnMap(sheet);
+  var lastCol = sheet.getLastColumn();
+  var d = sheet.getRange(rowIndex, 1, 1, lastCol).getValues()[0];
+
+  var number = (M.number !== undefined) ? (d[M.number] || '').toString().trim() : '';
 
   if (!number) {
     SpreadsheetApp.getUi().alert(
-      'No Number', 'Row ' + rowIndex + ' has no phone number (column E).',
+      'No Number', 'Row ' + rowIndex + ' has no phone number.',
       SpreadsheetApp.getUi().ButtonSet.OK);
     return null;
+  }
+
+  function val(fieldKey) {
+    return (M[fieldKey] !== undefined) ? (d[M[fieldKey]] || '').toString().trim() : '';
   }
 
   return {
     row:      rowIndex,
     rowIndex: rowIndex,
-    cgid:     d[C.CGID],
-    date:     d[C.DATE],
-    time:     d[C.TIME],
-    name:     (d[C.NAME] || '').toString().trim(),
+    cgid:     val('cgid'),
+    date:     val('date'),
+    time:     val('time'),
+    name:     val('name'),
     number:   number,
-    location: (d[C.LOCATION] || '').toString().trim(),
-    inquiry:  (d[C.INQUIRY] || '').toString().trim(),
-    product:  (d[C.PRODUCT] || '').toString().trim(),
-    message:  (d[C.MESSAGE] || '').toString().trim(),
-    source:   (d[C.SOURCE] || '').toString().trim(),
-    team:     (d[C.TEAM] || '').toString().trim(),
-    status:   (d[C.STATUS] || '').toString().trim(),
-    rating:   (d[C.RATING] || '').toString().trim(),
-    cbDate:   (d[C.CB_DATE] || '').toString().trim(),
-    remark:   (d[C.REMARK] || '').toString().trim(),
-    pipelineStage: (d[C.PIPELINE_STAGE] || '').toString().trim(),
+    location: val('location'),
+    inquiry:  val('inquiry'),
+    product:  val('product'),
+    message:  val('message'),
+    source:   val('source'),
+    team:     val('team'),
+    status:   val('status'),
+    rating:   val('rating'),
+    cbDate:   val('cbDate'),
+    remark:   val('remark'),
+    pipelineStage: val('pipelineStage'),
   };
+}
+
+/**
+ * Read header row and build field key → column index map.
+ * @param {Sheet} sheet — the Sheet object
+ * @returns {Object} { fieldKey: 0-based-index } e.g. { name: 3, status: 11, ... }
+ */
+function getColumnMap(sheet) {
+  var lastCol = sheet.getLastColumn();
+  if (lastCol === 0) return {};
+
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var map = {};
+  for (var i = 0; i < headers.length; i++) {
+    var h = (headers[i] || '').toString().trim();
+    if (!h) continue;
+    var fieldKey = CRM.HEADER_TO_FIELD[h];
+    if (fieldKey) map[fieldKey] = i;
+  }
+  return map;
 }
 
 

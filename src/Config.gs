@@ -49,23 +49,6 @@ CRM.SHEETS = {
 
 CRM.HEADER_ROW = 1;
 
-// ── DSR Column Indices (0-based) ──────────────────────────────
-//
-//  A  CGID        H  PRODUCT     O  REMARK
-//  B  DATE        I  MESSAGE     P  DAY
-//  C  TIME        J  SOURCE      Q  HOURS
-//  D  NAME        K  TEAM        R  CONVERTED
-//  E  NUMBER      L  STATUS      S  PIPELINE_STAGE
-//  F  LOCATION    M  RATING
-//  G  INQUIRY     N  CB_DATE
-//
-CRM.COL = {
-  CGID: 0, DATE: 1, TIME: 2, NAME: 3, NUMBER: 4, LOCATION: 5,
-  INQUIRY: 6, PRODUCT: 7, MESSAGE: 8, SOURCE: 9, TEAM: 10,
-  STATUS: 11, RATING: 12, CB_DATE: 13, REMARK: 14, DAY: 15,
-  HOURS: 16, CONVERTED: 17, PIPELINE_STAGE: 18,
-};
-
 // ── Agent_Config Tab Columns (0-based) ────────────────────────
 CRM.AGENT_COL = {
   NAME:     0,
@@ -94,67 +77,43 @@ CRM.STATUSES = [
 ];
 
 // ── Firestore Sync (onEdit trigger) ──────────────────────────
-//    TRACKED_COLS: 1-indexed column → field name (what gets synced)
+//    TRACKED_HEADERS: header text → field key (what gets synced)
 //    HISTORY_ACTIONS: field → Firestore history action label
 CRM.SYNC = (function() {
-
-  // ── Master config: 0-based column indices ──
-  var fieldConfig = {
-    [CRM.COL.NAME]: {
-      fieldName: 'name',
-      historyAction: 'name_updated'
-    },
-    [CRM.COL.LOCATION]: {
-      fieldName: 'location',
-      historyAction: 'location_updated'
-    },
-    [CRM.COL.INQUIRY]: {
-      fieldName: 'inquiry',
-      historyAction: 'inquiry_changed'
-    },
-    [CRM.COL.PRODUCT]: {
-      fieldName: 'product',
-      historyAction: 'product_changed'
-    },
-    [CRM.COL.TEAM]: {
-      fieldName: 'team',
-      historyAction: 'claimed'
-    },
-    [CRM.COL.STATUS]: {
-      fieldName: 'status',
-      historyAction: 'status_changed'
-    },
-    [CRM.COL.RATING]: {
-      fieldName: 'rating',
-      historyAction: 'rating_changed'
-    },
-    [CRM.COL.REMARK]: {
-      fieldName: 'remark',
-      historyAction: 'remark_added'
-    },
-    [CRM.COL.PIPELINE_STAGE]: {
-      fieldName: 'pipeline_stage',
-      historyAction: 'stage_changed'
-    },
+  var fieldSyncConfig = {
+    name:          { historyAction: 'name_updated' },
+    location:      { historyAction: 'location_updated' },
+    inquiry:       { historyAction: 'inquiry_changed' },
+    product:       { historyAction: 'product_added' },
+    team:          { historyAction: 'claimed' },
+    status:        { historyAction: 'status_changed' },
+    rating:        { historyAction: 'rating_changed' },
+    remark:        { historyAction: 'remark_added' },
+    pipelineStage: { historyAction: 'stage_changed' },
+    // Phase 3
+    salesRemark:     { historyAction: 'sales_remark_added' },
+    deliveryStatus:  { historyAction: 'delivery_status_changed' },
+    deliveryRemark:  { historyAction: 'delivery_remark_added' },
   };
 
-  var trackedCols = {};
+  var trackedHeaders = {};
   var historyActions = {};
 
-  // ── Auto-generate TRACKED_COLS & HISTORY_ACTIONS from FIELD_CONFIG ──
-  Object.keys(fieldConfig).forEach(function(colNum) {
-    var config = fieldConfig[colNum];
-
-    trackedCols[parseInt(colNum) + 1] = config.fieldName;
-    historyActions[config.fieldName] = config.historyAction;
-  });
+  var fieldKeys = Object.keys(fieldSyncConfig);
+  for (var i = 0; i < fieldKeys.length; i++) {
+    var fieldKey = fieldKeys[i];
+    var header = CRM.FIELD_HEADERS[fieldKey];
+    if (header) {
+      trackedHeaders[header] = fieldKey;
+    }
+    historyActions[fieldKey] = fieldSyncConfig[fieldKey].historyAction;
+  }
 
   return {
-    FIELD_CONFIG: fieldConfig,
-    TRACKED_COLS: trackedCols,
-    HISTORY_ACTIONS: historyActions
+    FIELD_SYNC_CONFIG: fieldSyncConfig,
+    TRACKED_HEADERS:   trackedHeaders,
+    HISTORY_ACTIONS:   historyActions,
   };
-
 })();
 
 // ── External APIs ────────────────────────────────────────────
@@ -178,21 +137,51 @@ CRM.DEFAULTS = {
   FOLLOW_UP:  'Follow-Up',
 };
 
-// ── Column Letter Map (auto-generated from CRM.COL) ──────────
-CRM.COL_LETTER = {};
+// ── Field Headers — Maps field keys to sheet header text ─────
+//    Matches CF config.FIELD_HEADERS exactly
+//    Used by dynamic column lookup (getColumnMap in Utils.gs)
+CRM.FIELD_HEADERS = {
+  cgid:          'CGID',
+  date:          'Date',
+  time:          'Time',
+  name:          'Name',
+  number:        'Mobile Number',
+  location:      'Location',
+  inquiry:       'Inquiry',
+  product:       'Product',
+  message:       'Message',
+  source:        'Source',
+  team:          'Team',
+  status:        'Status',
+  rating:        'Rating',
+  cbDate:        'CB Date',
+  remark:        'Remark',
+  day:           'Day',
+  hours:         'Hours',
+  converted:     'Converted',
+  pipelineStage: 'Pipeline Stage',
+  // Phase 3 fields
+  salesRemark:     'Sales Remark',
+  approvalDate:    'Approval Date',
+  quantity:        'Quantity',
+  productPrice:    'Product Price',
+  amountPaid:      'Amount Paid',
+  pendingAmount:   'Pending Amount',
+  modeOfPay:       'Mode of Pay',
+  paymentRefId:    'Payment Ref. ID',
+  dateOfPayment:   'Date of Payment',
+  receivedAccount: 'Received Account',
+  deliveryStatus:  'Delivery Status',
+  deliveryDate:    'Delivery Date',
+  deliveryRemark:  'Delivery Remark',
+};
+
+// Reverse map: header text → field key
+CRM.HEADER_TO_FIELD = {};
 (function() {
-  function _colLetter(idx) {
-    var letter = '';
-    var n = idx;
-    while (n >= 0) {
-      letter = String.fromCharCode(65 + (n % 26)) + letter;
-      n = Math.floor(n / 26) - 1;
-    }
-    return letter;
-  }
-  var keys = Object.keys(CRM.COL);
+  var keys = Object.keys(CRM.FIELD_HEADERS);
   for (var i = 0; i < keys.length; i++) {
-    CRM.COL_LETTER[keys[i]] = _colLetter(CRM.COL[keys[i]]);
+    CRM.HEADER_TO_FIELD[CRM.FIELD_HEADERS[keys[i]]] = keys[i];
   }
 })();
 
