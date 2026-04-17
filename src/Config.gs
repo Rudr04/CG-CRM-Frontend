@@ -41,11 +41,34 @@ Object.keys(_PROPERTY_SCHEMA).forEach(function(fieldName) {
   CRM.PROPS[fieldName] = _sp[storageKey] || '';
 });
 
+// ── Per-Sheet Context (Document Properties) ──────────────────
+// Set per-spreadsheet: CRM_SHEET_ROLE and CRM_SHEET_TAB_NAME
+// Roles: 'agents_dsr', 'sales_review', 'payments', 'delivery', 'master'
+CRM.CONTEXT = (function() {
+  try {
+    var dp = PropertiesService.getDocumentProperties().getProperties();
+    return {
+      ROLE:     dp['CRM_SHEET_ROLE']     || 'agents_dsr',  // default to DSR
+      TAB_NAME: dp['CRM_SHEET_TAB_NAME'] || 'Sheet5',
+    };
+  } catch (err) {
+    return { ROLE: 'agents_dsr', TAB_NAME: 'Sheet5' };
+  }
+})();
+
 // Add remaining CRM properties
 CRM.SHEETS = {
-  DSR:          'Sheet5',
+  DSR:          CRM.CONTEXT.TAB_NAME || 'Sheet5',
   AGENT_CONFIG: 'Agent_Config',
 };
+
+CRM.SPREADSHEET_ID = (function() {
+  try {
+    return SpreadsheetApp.getActiveSpreadsheet().getId();
+  } catch (e) {
+    return '';
+  }
+})();
 
 CRM.HEADER_ROW = 1;
 

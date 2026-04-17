@@ -250,13 +250,16 @@ function _sendStageTransition(transitionData) {
   }
 
   var payload = {
-    eventType: 'stage_transition',
-    phone:     transitionData.phone,
-    oldStage:  transitionData.oldStage,
-    newStage:  transitionData.newStage,
-    sourceRow: transitionData.sourceRow,
-    editor:    transitionData.editor,
-    timestamp: new Date().getTime(),
+    eventType:          'stage_transition',
+    phone:              transitionData.phone,
+    oldStage:           transitionData.oldStage,
+    newStage:           transitionData.newStage,
+    sourceRow:          transitionData.sourceRow,
+    sourceSpreadsheetId: CRM.SPREADSHEET_ID,
+    sourceTabName:       CRM.SHEETS.DSR,
+    sourceRole:          CRM.CONTEXT.ROLE,
+    editor:             transitionData.editor,
+    timestamp:          new Date().getTime(),
   };
 
   try {
