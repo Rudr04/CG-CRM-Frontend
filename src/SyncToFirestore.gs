@@ -111,6 +111,18 @@ function onSheetEditSync(e) {
           if (fKey) rowDataObj[fKey] = (rowData[hi] || '').toString();
         }
 
+        // Stage edits get sent as a dedicated event, not a field sync
+        if (fieldName === 'pipelineStage') {
+          _sendStageTransition({
+            phone:     phone,
+            oldStage:  oldValue,
+            newStage:  newValue,
+            sourceRow: row,
+            editor:    activeUser || triggerOwner,
+          });
+          continue;  // don't add to edits array
+        }
+
         edits.push({
           row:        row,
           phone:      phone,
@@ -222,6 +234,71 @@ function _sendEditsToCloudFunction(edits, editor) {
     // Network error — retry later
     console.error('[Sync] Network error: ' + err.toString());
     _addToDeadLetterQueue(edits, 'NETWORK_ERROR');
+  }
+}
+
+
+/**
+ * Send a stage transition event to Cloud Function.
+ * Separate from field syncs — has its own handler and validation.
+ */
+function _sendStageTransition(transitionData) {
+  var cfUrl = CRM.PROPS.CLOUD_FUNCTION_URL;
+  if (!cfUrl) {
+    console.warn('[Sync] CLOUD_FUNCTION_URL not set — stage transition not sent');
+    return;
+  }
+
+  var payload = {
+    eventType: 'stage_transition',
+    phone:     transitionData.phone,
+    oldStage:  transitionData.oldStage,
+    newStage:  transitionData.newStage,
+    sourceRow: transitionData.sourceRow,
+    editor:    transitionData.editor,
+    timestamp: new Date().getTime(),
+  };
+
+  try {
+    var resp = UrlFetchApp.fetch(cfUrl, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true,
+    });
+
+    var code = resp.getResponseCode();
+    var body = {};
+    try { body = JSON.parse(resp.getContentText()); } catch (e) { body = {}; }
+
+    if (code === 200 && body.success !== false) {
+      console.log('[Sync] Stage transition sent: ' + transitionData.phone +
+        ' (' + transitionData.oldStage + ' → ' + transitionData.newStage + ')');
+    } else {
+      console.error('[Sync] Stage transition failed: HTTP ' + code +
+        ' — ' + JSON.stringify(body));
+      // Add to dead letter queue for manual review
+      _addToDeadLetterQueue([{
+        row:        transitionData.sourceRow,
+        phone:      transitionData.phone,
+        field:      'pipelineStage',
+        oldValue:   transitionData.oldStage,
+        newValue:   transitionData.newStage,
+        retryCount: 0,
+        failReason: 'stage_transition_failed_http_' + code,
+      }], 'Stage transition HTTP error');
+    }
+  } catch (e) {
+    console.error('[Sync] Stage transition fetch error: ' + e.message);
+    _addToDeadLetterQueue([{
+      row:        transitionData.sourceRow,
+      phone:      transitionData.phone,
+      field:      'pipelineStage',
+      oldValue:   transitionData.oldStage,
+      newValue:   transitionData.newStage,
+      retryCount: 0,
+      failReason: e.message,
+    }], 'Stage transition network error');
   }
 }
 
