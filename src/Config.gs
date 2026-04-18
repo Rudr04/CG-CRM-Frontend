@@ -23,7 +23,7 @@ var _PROPERTY_SCHEMA = {
   CLOUD_FUNCTION_URL: 'CLOUD_FUNCTION_URL',
   FIREBASE_URL:       'FIREBASE_DATABASE_URL',  // ← Different storage key
   FIREBASE_SECRET:    'FIREBASE_SECRET',
-  SMARTFLO_C2C_TOKEN: 'SMARTFLO_TOKEN',
+  SMARTFLO_C2C_TOKEN: 'SMARTFLO_C2C_TOKEN',
   WATI_BASE_URL:      'WATI_BASE_URL',
   WATI_BEARER_TOKEN:  'WATI_BEARER_TOKEN',
   WATI_TENANT_ID:     'WATI_TENANT_ID',
@@ -41,34 +41,11 @@ Object.keys(_PROPERTY_SCHEMA).forEach(function(fieldName) {
   CRM.PROPS[fieldName] = _sp[storageKey] || '';
 });
 
-// ── Per-Sheet Context (Document Properties) ──────────────────
-// Set per-spreadsheet: CRM_SHEET_ROLE and CRM_SHEET_TAB_NAME
-// Roles: 'agents_dsr', 'sales_review', 'payments', 'delivery', 'master'
-CRM.CONTEXT = (function() {
-  try {
-    var dp = PropertiesService.getDocumentProperties().getProperties();
-    return {
-      ROLE:     dp['CRM_SHEET_ROLE']     || 'agents_dsr',  // default to DSR
-      TAB_NAME: dp['CRM_SHEET_TAB_NAME'] || 'Sheet5',
-    };
-  } catch (err) {
-    return { ROLE: 'agents_dsr', TAB_NAME: 'Sheet5' };
-  }
-})();
-
 // Add remaining CRM properties
 CRM.SHEETS = {
-  DSR:          CRM.CONTEXT.TAB_NAME || 'Sheet5',
+  DSR:          'Sheet5',
   AGENT_CONFIG: 'Agent_Config',
 };
-
-CRM.SPREADSHEET_ID = (function() {
-  try {
-    return SpreadsheetApp.getActiveSpreadsheet().getId();
-  } catch (e) {
-    return '';
-  }
-})();
 
 CRM.HEADER_ROW = 1;
 
@@ -98,46 +75,6 @@ CRM.STATUSES = [
   'Lead', 'Follow-Up', 'Interested', 'Not Interested',
   'Converted', 'MC Online Batch', 'MC Offline Batch',
 ];
-
-// ── Firestore Sync (onEdit trigger) ──────────────────────────
-//    TRACKED_HEADERS: header text → field key (what gets synced)
-//    HISTORY_ACTIONS: field → Firestore history action label
-CRM.SYNC = (function() {
-  var fieldSyncConfig = {
-    name:          { historyAction: 'name_updated' },
-    location:      { historyAction: 'location_updated' },
-    inquiry:       { historyAction: 'inquiry_changed' },
-    product:       { historyAction: 'product_added' },
-    team:          { historyAction: 'claimed' },
-    status:        { historyAction: 'status_changed' },
-    rating:        { historyAction: 'rating_changed' },
-    remark:        { historyAction: 'remark_added' },
-    pipelineStage: { historyAction: 'stage_changed' },
-    // Phase 3
-    salesRemark:     { historyAction: 'sales_remark_added' },
-    deliveryStatus:  { historyAction: 'delivery_status_changed' },
-    deliveryRemark:  { historyAction: 'delivery_remark_added' },
-  };
-
-  var trackedHeaders = {};
-  var historyActions = {};
-
-  var fieldKeys = Object.keys(fieldSyncConfig);
-  for (var i = 0; i < fieldKeys.length; i++) {
-    var fieldKey = fieldKeys[i];
-    var header = CRM.FIELD_HEADERS[fieldKey];
-    if (header) {
-      trackedHeaders[header] = fieldKey;
-    }
-    historyActions[fieldKey] = fieldSyncConfig[fieldKey].historyAction;
-  }
-
-  return {
-    FIELD_SYNC_CONFIG: fieldSyncConfig,
-    TRACKED_HEADERS:   trackedHeaders,
-    HISTORY_ACTIONS:   historyActions,
-  };
-})();
 
 // ── External APIs ────────────────────────────────────────────
 CRM.SMARTFLO = {
@@ -208,6 +145,45 @@ CRM.HEADER_TO_FIELD = {};
   }
 })();
 
+// ── Firestore Sync (onEdit trigger) ──────────────────────────
+//    TRACKED_HEADERS: header text → field key (what gets synced)
+//    HISTORY_ACTIONS: field → Firestore history action label
+CRM.SYNC = (function() {
+  var fieldSyncConfig = {
+    name:          { historyAction: 'name_updated' },
+    location:      { historyAction: 'location_updated' },
+    inquiry:       { historyAction: 'inquiry_changed' },
+    product:       { historyAction: 'product_added' },
+    team:          { historyAction: 'claimed' },
+    status:        { historyAction: 'status_changed' },
+    rating:        { historyAction: 'rating_changed' },
+    remark:        { historyAction: 'remark_added' },
+    pipelineStage: { historyAction: 'stage_changed' },
+    // Phase 3
+    salesRemark:     { historyAction: 'sales_remark_added' },
+    deliveryStatus:  { historyAction: 'delivery_status_changed' },
+    deliveryRemark:  { historyAction: 'delivery_remark_added' },
+  };
+
+  var trackedHeaders = {};
+  var historyActions = {};
+
+  var fieldKeys = Object.keys(fieldSyncConfig);
+  for (var i = 0; i < fieldKeys.length; i++) {
+    var fieldKey = fieldKeys[i];
+    var header = CRM.FIELD_HEADERS[fieldKey];
+    if (header) {
+      trackedHeaders[header] = fieldKey;
+    }
+    historyActions[fieldKey] = fieldSyncConfig[fieldKey].historyAction;
+  }
+
+  return {
+    FIELD_SYNC_CONFIG: fieldSyncConfig,
+    TRACKED_HEADERS:   trackedHeaders,
+    HISTORY_ACTIONS:   historyActions,
+  };
+})();
 
 /**
  * Save a property to Script Properties AND update CRM.PROPS in memory.
