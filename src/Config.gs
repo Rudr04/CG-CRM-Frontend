@@ -115,8 +115,8 @@ CRM.SYNC = (function() {
     pipelineStage: { historyAction: 'stage_changed' },
     // Phase 3
     salesRemark:     { historyAction: 'sales_remark_added' },
-    deliveryStatus:  { historyAction: 'delivery_status_changed' },
-    deliveryRemark:  { historyAction: 'delivery_remark_added' },
+    fulfillmentStatus: { historyAction: 'fulfillment_status_changed' },
+    fulfillmentRemark: { historyAction: 'fulfillment_remark_added' },
   };
 
   var trackedHeaders = {};
@@ -194,9 +194,9 @@ CRM.FIELD_HEADERS = {
   paymentRefId:    'Payment Ref. ID',
   dateOfPayment:   'Date of Payment',
   receivedAccount: 'Received Account',
-  deliveryStatus:  'Delivery Status',
-  deliveryDate:    'Delivery Date',
-  deliveryRemark:  'Delivery Remark',
+  fulfillmentStatus: 'Fulfillment Status',
+  fulfillmentDate:   'Fulfillment Date',
+  fulfillmentRemark: 'Fulfillment Remark',
 };
 
 // Reverse map: header text → field key
