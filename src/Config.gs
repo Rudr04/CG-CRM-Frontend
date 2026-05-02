@@ -99,45 +99,6 @@ CRM.STATUSES = [
   'Converted', 'MC Online Batch', 'MC Offline Batch',
 ];
 
-// ── Firestore Sync (onEdit trigger) ──────────────────────────
-//    TRACKED_HEADERS: header text → field key (what gets synced)
-//    HISTORY_ACTIONS: field → Firestore history action label
-CRM.SYNC = (function() {
-  var fieldSyncConfig = {
-    name:          { historyAction: 'name_updated' },
-    location:      { historyAction: 'location_updated' },
-    inquiry:       { historyAction: 'inquiry_changed' },
-    product:       { historyAction: 'product_added' },
-    team:          { historyAction: 'claimed' },
-    status:        { historyAction: 'status_changed' },
-    rating:        { historyAction: 'rating_changed' },
-    remark:        { historyAction: 'remark_added' },
-    pipelineStage: { historyAction: 'stage_changed' },
-    // Phase 3
-    salesRemark:     { historyAction: 'sales_remark_added' },
-    fulfillmentStatus: { historyAction: 'fulfillment_status_changed' },
-    fulfillmentRemark: { historyAction: 'fulfillment_remark_added' },
-  };
-
-  var trackedHeaders = {};
-  var historyActions = {};
-
-  var fieldKeys = Object.keys(fieldSyncConfig);
-  for (var i = 0; i < fieldKeys.length; i++) {
-    var fieldKey = fieldKeys[i];
-    var header = CRM.FIELD_HEADERS[fieldKey];
-    if (header) {
-      trackedHeaders[header] = fieldKey;
-    }
-    historyActions[fieldKey] = fieldSyncConfig[fieldKey].historyAction;
-  }
-
-  return {
-    FIELD_SYNC_CONFIG: fieldSyncConfig,
-    TRACKED_HEADERS:   trackedHeaders,
-    HISTORY_ACTIONS:   historyActions,
-  };
-})();
 
 // ── External APIs ────────────────────────────────────────────
 CRM.SMARTFLO = {
@@ -206,6 +167,46 @@ CRM.HEADER_TO_FIELD = {};
   for (var i = 0; i < keys.length; i++) {
     CRM.HEADER_TO_FIELD[CRM.FIELD_HEADERS[keys[i]]] = keys[i];
   }
+})();
+
+// ── Firestore Sync (onEdit trigger) ──────────────────────────
+//    TRACKED_HEADERS: header text → field key (what gets synced)
+//    HISTORY_ACTIONS: field → Firestore history action label
+CRM.SYNC = (function() {
+  var fieldSyncConfig = {
+    name:          { historyAction: 'name_updated' },
+    location:      { historyAction: 'location_updated' },
+    inquiry:       { historyAction: 'inquiry_changed' },
+    product:       { historyAction: 'product_added' },
+    team:          { historyAction: 'claimed' },
+    status:        { historyAction: 'status_changed' },
+    rating:        { historyAction: 'rating_changed' },
+    remark:        { historyAction: 'remark_added' },
+    pipelineStage: { historyAction: 'stage_changed' },
+    // Phase 3
+    salesRemark:     { historyAction: 'sales_remark_added' },
+    fulfillmentStatus: { historyAction: 'fulfillment_status_changed' },
+    fulfillmentRemark: { historyAction: 'fulfillment_remark_added' },
+  };
+
+  var trackedHeaders = {};
+  var historyActions = {};
+
+  var fieldKeys = Object.keys(fieldSyncConfig);
+  for (var i = 0; i < fieldKeys.length; i++) {
+    var fieldKey = fieldKeys[i];
+    var header = CRM.FIELD_HEADERS[fieldKey];
+    if (header) {
+      trackedHeaders[header] = fieldKey;
+    }
+    historyActions[fieldKey] = fieldSyncConfig[fieldKey].historyAction;
+  }
+
+  return {
+    FIELD_SYNC_CONFIG: fieldSyncConfig,
+    TRACKED_HEADERS:   trackedHeaders,
+    HISTORY_ACTIONS:   historyActions,
+  };
 })();
 
 
