@@ -113,13 +113,26 @@ function onSheetEditSync(e) {
 
         // Stage edits get sent as a dedicated event, not a field sync
         if (fieldName === 'pipelineStage') {
-          _sendStageTransition({
-            phone:     phone,
-            oldStage:  oldValue,
-            newStage:  newValue,
-            sourceRow: row,
-            editor:    activeUser || triggerOwner,
-          });
+          if (newValue === 'sales_review') {
+            // Revert the cell immediately — form submission will perform the
+            // transition only if the agent submits valid payment evidence.
+            sheet.getRange(row, col).setValue(oldValue || 'agent_working');
+
+            _openSalesReviewForm({
+              phone:    phone,
+              row:      row,
+              oldStage: oldValue || 'agent_working',
+              editor:   activeUser || triggerOwner,
+            });
+          } else {
+            _sendStageTransition({
+              phone:     phone,
+              oldStage:  oldValue,
+              newStage:  newValue,
+              sourceRow: row,
+              editor:    activeUser || triggerOwner,
+            });
+          }
           continue;  // don't add to edits array
         }
 

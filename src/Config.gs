@@ -144,6 +144,8 @@ CRM.FIELD_HEADERS = {
   hours:         'Hours',
   converted:     'Converted',
   pipelineStage: 'Pipeline Stage',
+  scholarship:   'Scholarship',
+  installment:   'Installment',
   // Phase 3 fields
   salesRemark:     'Sales Remark',
   approvalDate:    'Approval Date',
@@ -155,6 +157,7 @@ CRM.FIELD_HEADERS = {
   paymentRefId:    'Payment Ref. ID',
   dateOfPayment:   'Date of Payment',
   receivedAccount: 'Received Account',
+  paymentRemark:   'Payment Remark',
   fulfillmentStatus: 'Fulfillment Status',
   fulfillmentDate:   'Fulfillment Date',
   fulfillmentRemark: 'Fulfillment Remark',
