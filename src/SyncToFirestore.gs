@@ -114,6 +114,32 @@ function onSheetEditSync(e) {
         // Stage edits get sent as a dedicated event, not a field sync
         if (fieldName === 'pipelineStage') {
           if (newValue === 'sales_review') {
+            // Pre-check: lead must be marked as converted before submitting.
+            // Reuse the already-batch-read headerRow and affectedData — no
+            // extra sheet read.
+            var statusColIdx = -1;
+            for (var si = 0; si < headerRow.length; si++) {
+              if ((headerRow[si] || '').toString().trim() === CRM.FIELD_HEADERS.status) {
+                statusColIdx = si;
+                break;
+              }
+            }
+
+            var leadStatus = '';
+            if (statusColIdx >= 0) {
+              leadStatus = (affectedData[row - startRow][statusColIdx] || '').toString().trim();
+            }
+
+            if (CRM.CONVERTED_STATUSES.indexOf(leadStatus) === -1) {
+              sheet.getRange(row, col).setValue(oldValue || 'agent_working');
+              SpreadsheetApp.getActiveSpreadsheet().toast(
+                'Lead status must be "Admission Done" or "Seat Booked" before submitting to Sales Review.',
+                '⚠️ Cannot Submit',
+                5
+              );
+              continue;
+            }
+
             // Revert the cell immediately — form submission will perform the
             // transition only if the agent submits valid payment evidence.
             sheet.getRange(row, col).setValue(oldValue || 'agent_working');

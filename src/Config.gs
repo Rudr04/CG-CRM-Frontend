@@ -99,6 +99,8 @@ CRM.STATUSES = [
   'Converted', 'MC Online Batch', 'MC Offline Batch',
 ];
 
+CRM.CONVERTED_STATUSES = ['Admission Done', 'Seat Booked'];
+
 
 // ── External APIs ────────────────────────────────────────────
 CRM.SMARTFLO = {
