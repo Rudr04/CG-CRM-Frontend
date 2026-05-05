@@ -30,7 +30,16 @@ function onSheetEditSync(e) {
     if (!e || !e.range) return;
 
     var sheet = e.range.getSheet();
-    if (sheet.getName() !== CRM.SHEETS.DSR) return;
+
+    // Determine which tab to monitor based on deployment role.
+    // CRM.SHEETS.DSR is wired to CRM.CONTEXT.TAB_NAME for per-deployment overrides,
+    // but the explicit role check guards against missing document properties on
+    // the sales_review deployment.
+    var monitoredSheet = CRM.SHEETS.DSR;
+    if (CRM.CONTEXT && CRM.CONTEXT.ROLE === 'sales_review') {
+      monitoredSheet = CRM.CONTEXT.TAB_NAME || 'Sheet1';
+    }
+    if (sheet.getName() !== monitoredSheet) return;
 
     // ─── KEY CHANGE: Detect if this is MY edit ───────────────────
     var triggerOwner = Session.getEffectiveUser().getEmail();  // Who edited (NULL if not my trigger)
@@ -150,16 +159,127 @@ function onSheetEditSync(e) {
               oldStage: oldValue || 'agent_working',
               editor:   activeUser || triggerOwner,
             });
-          } else {
-            _sendStageTransition({
-              phone:     phone,
-              oldStage:  oldValue,
-              newStage:  newValue,
-              sourceRow: row,
-              editor:    activeUser || triggerOwner,
-            });
+            continue;
           }
-          continue;  // don't add to edits array
+
+          if (newValue === 'payment') {
+            // ── Sales Review → Payment transition ──
+            // Pre-gate 1: Sales Approval must be 'Approved'.
+            var approvalColIdx = -1;
+            for (var ai = 0; ai < headerRow.length; ai++) {
+              if ((headerRow[ai] || '').toString().trim() === CRM.FIELD_HEADERS.salesApproval) {
+                approvalColIdx = ai;
+                break;
+              }
+            }
+            var approvalValue = approvalColIdx >= 0
+              ? (affectedData[row - startRow][approvalColIdx] || '').toString().trim()
+              : '';
+
+            if (approvalValue !== 'Approved') {
+              sheet.getRange(row, col).setValue(oldValue || 'sales_review');
+              SpreadsheetApp.getActiveSpreadsheet().toast(
+                'Sales Approval must be "Approved" before moving to Payment.',
+                '⚠️ Cannot Transition',
+                5
+              );
+              continue;
+            }
+
+            // Pre-gate 2: All required fields must be filled.
+            var missingForPayment = [];
+            var paymentReqFields = CRM.STAGE_TO_PAYMENT_REQUIRED_FIELDS;
+            for (var pf = 0; pf < paymentReqFields.length; pf++) {
+              var pfKey = paymentReqFields[pf];
+              var pfHeader = CRM.FIELD_HEADERS[pfKey];
+              if (!pfHeader) continue;
+
+              var pfColIdx = -1;
+              for (var ph = 0; ph < headerRow.length; ph++) {
+                if ((headerRow[ph] || '').toString().trim() === pfHeader) {
+                  pfColIdx = ph;
+                  break;
+                }
+              }
+
+              if (pfColIdx >= 0) {
+                var pfValue = (affectedData[row - startRow][pfColIdx] || '').toString().trim();
+                if (pfValue === '') missingForPayment.push(pfHeader);
+              }
+            }
+
+            if (missingForPayment.length > 0) {
+              sheet.getRange(row, col).setValue(oldValue || 'sales_review');
+              SpreadsheetApp.getActiveSpreadsheet().toast(
+                'Fill these fields first: ' + missingForPayment.join(', '),
+                '⚠️ Cannot Move to Payment',
+                8
+              );
+              continue;
+            }
+
+            // All pre-gates passed — revert cell, open payment transition form.
+            // The form's submit handler will send the stage_transition event
+            // with formData (finalPrice, partialAccess, etc.) to the CF.
+            sheet.getRange(row, col).setValue(oldValue || 'sales_review');
+            _openPaymentTransitionForm({
+              phone:    phone,
+              row:      row,
+              oldStage: oldValue || 'sales_review',
+              editor:   activeUser || triggerOwner,
+            });
+            continue;
+          }
+
+          // All other stage transitions (e.g. sales_review → agent_working
+          // for deny flow, or → dead). The salesRemark column carries the
+          // denial reason; stageRouter handles cross-sheet row movement.
+          _sendStageTransition({
+            phone:     phone,
+            oldStage:  oldValue,
+            newStage:  newValue,
+            sourceRow: row,
+            editor:    activeUser || triggerOwner,
+          });
+          continue;
+        }
+
+        // ── Sales Approval gate ──
+        // When sales sets 'Sales Approval' to 'Approved', verify all financial
+        // fields are filled. On failure, revert to 'Pending' and toast.
+        // On success, fall through to the normal sync (push into edits).
+        if (fieldName === 'salesApproval' && newValue === 'Approved') {
+          var missingFields = [];
+          var requiredFields = CRM.APPROVAL_REQUIRED_FIELDS;
+          for (var rf = 0; rf < requiredFields.length; rf++) {
+            var reqFieldKey = requiredFields[rf];
+            var reqHeader = CRM.FIELD_HEADERS[reqFieldKey];
+            if (!reqHeader) continue;
+
+            var reqColIdx = -1;
+            for (var rh = 0; rh < headerRow.length; rh++) {
+              if ((headerRow[rh] || '').toString().trim() === reqHeader) {
+                reqColIdx = rh;
+                break;
+              }
+            }
+
+            if (reqColIdx >= 0) {
+              var cellValue = (affectedData[row - startRow][reqColIdx] || '').toString().trim();
+              if (cellValue === '') missingFields.push(reqHeader);
+            }
+          }
+
+          if (missingFields.length > 0) {
+            sheet.getRange(row, col).setValue('Pending');
+            SpreadsheetApp.getActiveSpreadsheet().toast(
+              'Fill these fields before approving: ' + missingFields.join(', '),
+              '⚠️ Cannot Approve',
+              8
+            );
+            continue;
+          }
+          // Approval is valid — fall through to edits.push() below for normal sync.
         }
 
         edits.push({

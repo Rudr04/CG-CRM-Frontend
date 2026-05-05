@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8f9fa; padding: 16px; overflow: visible; }
+
+    .form-section { background: #fff; padding: 18px; margin-bottom: 14px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.1); overflow: visible; }
+    .section-title { font-size: 13px; font-weight: 600; color: #202124; margin-bottom: 14px; text-transform: uppercase; letter-spacing: .5px; }
+
+    .form-row       { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; overflow: visible; }
+    .form-row.full  { grid-template-columns: 1fr; }
+    .form-group     { display: flex; flex-direction: column; overflow: visible; }
+
+    label        { font-size: 12px; font-weight: 500; color: #5f6368; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .3px; }
+    label .req   { color: #d33427; margin-left: 2px; }
+    .helper      { font-size: 11px; color: #80868b; margin-top: 4px; }
+
+    input[type="text"], input[type="number"], input[type="date"], select, textarea {
+      padding: 9px 11px; border: 1px solid #dadce0; border-radius: 4px;
+      font-size: 13px; font-family: inherit; transition: border-color .2s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: #4285f4; box-shadow: 0 0 0 3px rgba(66,133,244,.1);
+    }
+
+    /* ── Toggle Switch ── */
+    .toggle-row { display: flex; align-items: center; gap: 12px; }
+    .toggle {
+      position: relative; display: inline-block; width: 42px; height: 22px; flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle .slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background: #dadce0; transition: .2s; border-radius: 22px;
+    }
+    .toggle .slider:before {
+      position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+      background: #fff; transition: .2s; border-radius: 50%;
+      box-shadow: 0 1px 2px rgba(0,0,0,.2);
+    }
+    .toggle input:checked + .slider { background: #1f73e6; }
+    .toggle input:checked + .slider:before { transform: translateX(20px); }
+    .toggle-label { font-size: 13px; color: #202124; }
+
+    /* ── Buttons ── */
+    .btn-group { display: flex; gap: 12px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #e8eaed; }
+    .btn       { flex: 1; padding: 10px 24px; border: none; border-radius: 4px; font-size: 13px; font-weight: 500; cursor: pointer; text-transform: uppercase; letter-spacing: .5px; }
+    .btn-sub   { background: #1f73e6; color: #fff; }
+    .btn-sub:hover { background: #1765cc; }
+    .btn-sub:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-clr   { background: #f3f3f3; color: #202124; }
+    .btn-clr:hover { background: #e8e8e8; }
+
+    .error { color: #d33427; font-size: 12px; margin-top: 4px; display: none; }
+    .error.show { display: block; }
+    .status-msg { padding: 10px 14px; border-radius: 4px; font-size: 13px; margin-bottom: 12px; display: none; }
+    .status-msg.show { display: block; }
+    .status-msg.error { background: #fce8e6; color: #d33427; border: 1px solid #f5b7b1; }
+    .status-msg.success { background: #e6f4ea; color: #137333; border: 1px solid #a8d5b6; }
+
+    .loading { display: none; text-align: center; padding: 16px; color: #5f6368; font-size: 13px; }
+    .loading.show { display: block; }
+    .spin { display: inline-block; width: 16px; height: 16px; border: 2px solid #e8eaed;
+            border-top-color: #1f73e6; border-radius: 50%; animation: sp .6s linear infinite; margin-right: 8px; }
+    @keyframes sp { to { transform: rotate(360deg); } }
+
+    .hidden-section { display: none; }
+    .hidden-section.show { display: block; }
+  </style>
+</head>
+<body>
+  <form id="frm">
+    <div class="status-msg" id="statusMsg"></div>
+
+    <div class="form-section">
+      <div class="section-title">Final Pricing</div>
+
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Final Price ₹ <span class="req">*</span></label>
+          <input type="number" id="finalPrice" min="1" step="any" placeholder="e.g. 25000" value="<?= prefilledFee ?>" />
+          <div class="helper">Pre-filled: Product Price − Scholarship. Adjust if needed.</div>
+          <div class="error" id="finalPriceErr"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-title">Access Configuration</div>
+
+      <div class="form-row full">
+        <div class="form-group">
+          <div class="toggle-row">
+            <label class="toggle">
+              <input type="checkbox" id="partialAccess" />
+              <span class="slider"></span>
+            </label>
+            <span class="toggle-label">Allow course access before full payment?</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hidden-section" id="partialFields">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Access Threshold ₹ <span class="req">*</span></label>
+            <input type="number" id="accessThreshold" min="1" step="any" placeholder="Min payment for access" />
+            <div class="error" id="thresholdErr"></div>
+          </div>
+          <div class="form-group">
+            <label>Deadline Date <span class="req">*</span></label>
+            <input type="date" id="paymentDeadline" />
+            <div class="error" id="deadlineErr"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="loading" id="loading"><span class="spin"></span> Submitting...</div>
+      <div class="btn-group">
+        <button type="submit" class="btn btn-sub" id="subBtn">💰 Submit to Payment</button>
+        <button type="button" class="btn btn-clr" id="cancelBtn">Cancel</button>
+      </div>
+    </div>
+  </form>
+
+  <input type="hidden" id="phone" value="<?= phone ?>" />
+  <input type="hidden" id="row" value="<?= row ?>" />
+  <input type="hidden" id="oldStage" value="<?= oldStage ?>" />
+  <input type="hidden" id="editor" value="<?= editor ?>" />
+  <input type="hidden" id="spreadsheetId" value="<?= spreadsheetId ?>" />
+  <input type="hidden" id="tabName" value="<?= tabName ?>" />
+  <input type="hidden" id="role" value="<?= role ?>" />
+
+  <script>
+    /* ── Toggle partial-access fields ── */
+    function updatePartialVisibility() {
+      var checked = document.getElementById('partialAccess').checked;
+      var section = document.getElementById('partialFields');
+      if (checked) section.classList.add('show');
+      else section.classList.remove('show');
+    }
+    document.getElementById('partialAccess').addEventListener('change', updatePartialVisibility);
+
+    /* ── Cancel: cell already reverted, just close ── */
+    document.getElementById('cancelBtn').addEventListener('click', function() {
+      google.script.host.close();
+    });
+
+    /* ── Submit handler ── */
+    document.getElementById('frm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (!validate()) return;
+      showLoading();
+
+      var fd = {
+        phone:           document.getElementById('phone').value,
+        row:             document.getElementById('row').value,
+        oldStage:        document.getElementById('oldStage').value,
+        editor:          document.getElementById('editor').value,
+        spreadsheetId:   document.getElementById('spreadsheetId').value,
+        tabName:         document.getElementById('tabName').value,
+        role:            document.getElementById('role').value,
+        finalPrice:      document.getElementById('finalPrice').value,
+        partialAccess:   document.getElementById('partialAccess').checked,
+        accessThreshold: document.getElementById('accessThreshold').value,
+        paymentDeadline: document.getElementById('paymentDeadline').value,
+      };
+
+      google.script.run
+        .withSuccessHandler(function(r) {
+          hideLoading();
+          if (r && r.success) {
+            showStatus('success', '✅ ' + (r.message || 'Submitted'));
+            setTimeout(function() { google.script.host.close(); }, 1500);
+          } else {
+            showStatus('error', '❌ ' + ((r && r.message) || 'Submission failed'));
+          }
+        })
+        .withFailureHandler(function(err) {
+          hideLoading();
+          showStatus('error', '❌ Failed: ' + (err && err.message ? err.message : err));
+        })
+        .submitPaymentTransition(fd);
+    });
+
+    /* ── Validation ── */
+    function validate() {
+      clrErr();
+      var ok = true;
+      var fp = Number(document.getElementById('finalPrice').value);
+      if (!fp || fp <= 0) {
+        showErr('finalPriceErr', 'Final Price must be greater than 0');
+        ok = false;
+      }
+
+      if (document.getElementById('partialAccess').checked) {
+        var threshold = Number(document.getElementById('accessThreshold').value);
+        if (!threshold || threshold <= 0) {
+          showErr('thresholdErr', 'Threshold must be greater than 0');
+          ok = false;
+        } else if (fp && threshold >= fp) {
+          showErr('thresholdErr', 'Threshold must be less than Final Price');
+          ok = false;
+        }
+        if (!document.getElementById('paymentDeadline').value) {
+          showErr('deadlineErr', 'Deadline is required for partial access');
+          ok = false;
+        }
+      }
+      return ok;
+    }
+
+    function showErr(id, msg) {
+      var el = document.getElementById(id);
+      el.textContent = msg;
+      el.classList.add('show');
+    }
+
+    function clrErr() {
+      document.querySelectorAll('.error').forEach(function(el) {
+        el.classList.remove('show');
+        el.textContent = '';
+      });
+      var sm = document.getElementById('statusMsg');
+      sm.className = 'status-msg';
+      sm.textContent = '';
+    }
+
+    function showStatus(kind, msg) {
+      var sm = document.getElementById('statusMsg');
+      sm.textContent = msg;
+      sm.className = 'status-msg show ' + kind;
+    }
+
+    function showLoading() {
+      document.getElementById('loading').classList.add('show');
+      document.getElementById('subBtn').disabled = true;
+    }
+
+    function hideLoading() {
+      document.getElementById('loading').classList.remove('show');
+      document.getElementById('subBtn').disabled = false;
+    }
+  </script>
+</body>
+</html>

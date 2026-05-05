@@ -101,6 +101,25 @@ CRM.STATUSES = [
 
 CRM.CONVERTED_STATUSES = ['Admission Done', 'Seat Booked'];
 
+// ── Sales Review Approval Gates ──────────────────────────────
+// Fields required before Sales Approval can be set to 'Approved'
+CRM.APPROVAL_REQUIRED_FIELDS = [
+  'scholarship', 'installment', 'dateOfPayment', 'timeOfPay', 'paymentRefId'
+];
+
+// Fields required before Pipeline Stage can transition to 'payment'
+// (superset of APPROVAL_REQUIRED_FIELDS plus product config)
+CRM.STAGE_TO_PAYMENT_REQUIRED_FIELDS = [
+  'scholarship', 'installment', 'dateOfPayment', 'timeOfPay', 'paymentRefId',
+  'modeOfStudy', 'certificateType', 'batch'
+];
+
+// ── Sales Review Dropdown Values ─────────────────────────────
+CRM.CERTIFICATES       = ['CGI', 'LJ'];
+CRM.MODES_OF_STUDY     = ['Online', 'Offline'];
+CRM.BATCHES            = ['Wed', 'Fri & Wed', 'Sun'];
+CRM.APPROVAL_STATUSES  = ['Pending', 'Approved'];
+
 
 // ── External APIs ────────────────────────────────────────────
 CRM.SMARTFLO = {
@@ -163,6 +182,18 @@ CRM.FIELD_HEADERS = {
   fulfillmentStatus: 'Fulfillment Status',
   fulfillmentDate:   'Fulfillment Date',
   fulfillmentRemark: 'Fulfillment Remark',
+  // Sales review approval + product config (sales_review sheet)
+  // NOTE: paymentDate reuses dateOfPayment, txnLast4 reuses paymentRefId,
+  // adjustedFee reuses finalPrice — no duplicate keys.
+  salesApproval:     'Sales Approval',
+  paymentApproval:   'Payment Approval',
+  timeOfPay:         'Time of Pay',
+  modeOfStudy:       'Mode of Study',
+  certificateType:   'Certificate Type',
+  batch:             'Batch',
+  partialAccess:     'Partial Access',
+  accessThreshold:   'Access Threshold',
+  paymentDeadline:   'Payment Deadline',
 };
 
 // Reverse map: header text → field key
@@ -192,6 +223,19 @@ CRM.SYNC = (function() {
     salesRemark:     { historyAction: 'sales_remark_added' },
     fulfillmentStatus: { historyAction: 'fulfillment_status_changed' },
     fulfillmentRemark: { historyAction: 'fulfillment_remark_added' },
+    // Pre-existing gap fix: scholarship/installment were missing here
+    scholarship:     { historyAction: 'scholarship_updated' },
+    installment:     { historyAction: 'installment_updated' },
+    // Sales review approval + verification + product config
+    salesApproval:    { historyAction: 'sales_approval_changed' },
+    paymentApproval:  { historyAction: 'payment_approval_changed' },
+    modeOfStudy:      { historyAction: 'mode_of_study_set' },
+    certificateType:  { historyAction: 'certificate_type_set' },
+    batch:            { historyAction: 'batch_set' },
+    timeOfPay:        { historyAction: 'time_of_pay_set' },
+    // Reused field keys (paymentDate→dateOfPayment, txnLast4→paymentRefId)
+    dateOfPayment:    { historyAction: 'payment_date_set' },
+    paymentRefId:     { historyAction: 'txn_ref_set' },
   };
 
   var trackedHeaders = {};
