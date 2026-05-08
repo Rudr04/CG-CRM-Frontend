@@ -46,7 +46,7 @@ Object.keys(_PROPERTY_SCHEMA).forEach(function(fieldName) {
 // Roles: 'agents_dsr', 'sales_review', 'payments', 'delivery', 'master'
 CRM.CONTEXT = (function() {
   try {
-    var dp = PropertiesService.getDocumentProperties().getProperties();
+    var dp = PropertiesService.getScriptProperties().getProperties();
     return {
       ROLE:     dp['CRM_SHEET_ROLE']     || 'agents_dsr',  // default to DSR
       TAB_NAME: dp['CRM_SHEET_TAB_NAME'] || 'Sheet5',
@@ -83,7 +83,7 @@ CRM.AGENT_COL = {
 // ── Dropdown Lists ────────────────────────────────────────────
 CRM.AGENTS = [
   'Priyanshi', 'Namrata', 'Mahesh', 'Purvi', 'Bhailal Kaka',
-  'Shivani', 'Payal', 'ROBO', 'Vidhyuta', 'Manthan',
+  'Shivani', 'Payal', 'ROBO', 'Vidhyuta', 'Manthan', 'Himmani'
 ];
 
 CRM.INQUIRIES = ['CGI', 'CosmoGuru', 'CosmoKundli', 'CosmoWellness'];
@@ -95,8 +95,9 @@ CRM.SOURCES = [
 ];
 
 CRM.STATUSES = [
-  'Lead', 'Follow-Up', 'Interested', 'Not Interested',
-  'Converted', 'MC Online Batch', 'MC Offline Batch',
+  'Lead', 'Follow-Up', 'NR', 'Future',
+  'On-Chat', 'Seat Booked', 'Admission Done','Transfer',
+  'Online MC Link Sent'
 ];
 
 CRM.CONVERTED_STATUSES = ['Admission Done', 'Seat Booked'];
@@ -104,13 +105,13 @@ CRM.CONVERTED_STATUSES = ['Admission Done', 'Seat Booked'];
 // ── Sales Review Approval Gates ──────────────────────────────
 // Fields required before Sales Approval can be set to 'Approved'
 CRM.APPROVAL_REQUIRED_FIELDS = [
-  'scholarship', 'installment', 'dateOfPayment', 'timeOfPay', 'paymentRefId'
+  'scholarship', 'installment', 'dateOfPayment', 'paymentRefId'
 ];
 
 // Fields required before Pipeline Stage can transition to 'payment'
 // (superset of APPROVAL_REQUIRED_FIELDS plus product config)
 CRM.STAGE_TO_PAYMENT_REQUIRED_FIELDS = [
-  'scholarship', 'installment', 'dateOfPayment', 'timeOfPay', 'paymentRefId',
+  'scholarship', 'installment', 'dateOfPayment', 'paymentRefId',
   'modeOfStudy', 'certificateType', 'batch'
 ];
 
@@ -187,7 +188,6 @@ CRM.FIELD_HEADERS = {
   // adjustedFee reuses finalPrice — no duplicate keys.
   salesApproval:     'Sales Approval',
   paymentApproval:   'Payment Approval',
-  timeOfPay:         'Time of Pay',
   modeOfStudy:       'Mode of Study',
   certificateType:   'Certificate Type',
   batch:             'Batch',
@@ -232,7 +232,6 @@ CRM.SYNC = (function() {
     modeOfStudy:      { historyAction: 'mode_of_study_set' },
     certificateType:  { historyAction: 'certificate_type_set' },
     batch:            { historyAction: 'batch_set' },
-    timeOfPay:        { historyAction: 'time_of_pay_set' },
     // Reused field keys (paymentDate→dateOfPayment, txnLast4→paymentRefId)
     dateOfPayment:    { historyAction: 'payment_date_set' },
     paymentRefId:     { historyAction: 'txn_ref_set' },

@@ -101,10 +101,29 @@ html, body {
 .sbtn:hover { background: #1da851; }
 .sbtn:disabled { background: #ccc; cursor: not-allowed; }
 
-/* ── Template section ── */
-.tgl { font-size: 11px; color: #075e54; cursor: pointer; padding: 0 2px; margin: 5px 0px; display: flex; align-items: center; gap: 4px; user-select: none; width: 100%; }
+/* ── Toggle row (Templates + Chatbot side by side) ── */
+.tgl-row { display: flex; gap: 6px; margin: 5px 0; width: 100%; }
+.tgl { font-size: 11px; color: #075e54; cursor: pointer; padding: 4px 8px; display: flex; align-items: center; gap: 4px; user-select: none; border: 1px solid #dadce0; border-radius: 6px; background: #fff; transition: background .15s, border-color .15s; flex: 1; justify-content: center; }
+.tgl:hover { background: #e8f5e9; }
+.tgl.active { background: #dcf8c6; border-color: #25d366; font-weight: 600; }
+.tgl.disabled { opacity: .4; pointer-events: none; }
 .tpanel { display: none; margin-top: -1px; width: 100%; }
 .tpanel.open { display: block; }
+
+/* ── Chatbot panel (mirrors template panel) ── */
+.cb-dropdown { position: relative; width: 100%; margin-bottom: 3px; }
+.cb-dd-input { width: 100%; border: 1px solid #dadce0; border-radius: 6px; padding: 6px 9px; font-size: 12px; background: #fff; outline: none; cursor: pointer; }
+.cb-dd-input:focus { border-color: #075e54; }
+.cb-dd-list { display: none; position: absolute; bottom: 100%; left: 0; right: 0; max-height: 180px; overflow-y: auto; background: #fff; border: 1px solid #dadce0; border-radius: 6px; box-shadow: 0 -2px 8px rgba(0,0,0,.12); z-index: 50; margin-bottom: 2px; }
+.cb-dd-list.open { display: block; }
+.cb-dd-item { padding: 7px 10px; font-size: 11px; cursor: pointer; border-bottom: 1px solid #f0f2f5; }
+.cb-dd-item:last-child { border-bottom: none; }
+.cb-dd-item:hover { background: #e8f5e9; }
+.cb-dd-item.selected { background: #dcf8c6; font-weight: 600; }
+.cb-dd-empty { padding: 10px; font-size: 11px; color: #999; text-align: center; }
+.cbstart { width: 100%; padding: 6px; background: #075e54; border: none; border-radius: 6px; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
+.cbstart:hover { background: #064940; }
+.cbstart:disabled { background: #ccc; cursor: not-allowed; }
 select, .tpanel input { width: 100%; border: 1px solid #dadce0; border-radius: 6px; padding: 5px 9px; font-size: 12px; background: #fff; outline: none; margin-bottom: 3px; }
 .tprev { font-size: 11px; color: #555; background: #fff; padding: 4px 9px; border-radius: 6px; border: 1px solid #e0e0e0; margin-bottom: 3px; min-height: 24px; max-height: 48px; overflow-y: auto; white-space: pre-wrap; display: none; }
 .tsend { width: 100%; padding: 6px; background: #25d366; border: none; border-radius: 6px; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
@@ -209,7 +228,10 @@ select, .tpanel input { width: 100%; border: 1px solid #dadce0; border-radius: 6
   <button class="sbtn" id="sendBtn" title="Send (Ctrl+Enter)">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="#fff"/></svg>
   </button>
-  <div class="tgl" id="tglBtn">&#9654; Use Template</div>
+  <div class="tgl-row">
+    <div class="tgl" id="tglBtn">📨 Templates</div>
+    <div class="tgl" id="cbTglBtn">🤖 Chatbot</div>
+  </div>
   <div class="tpanel" id="tpanel">
     <div class="tpl-dropdown" id="tplDropdown">
       <input type="text" class="tpl-dd-input" id="tplSearch" placeholder="— Select a template —" onfocus="openTplDD()" oninput="filterTplDD()">
@@ -218,6 +240,13 @@ select, .tpanel input { width: 100%; border: 1px solid #dadce0; border-radius: 6
     <div class="tprev" id="tprev"></div>
     <div id="tparams"></div>
     <button class="tsend" onclick="sendTpl()">📨 Send Template</button>
+  </div>
+  <div class="tpanel" id="cbpanel">
+    <div class="cb-dropdown" id="cbDropdown">
+      <input type="text" class="cb-dd-input" id="cbSearch" placeholder="— Select a chatbot —" onfocus="openCbDD()" oninput="filterCbDD()">
+      <div class="cb-dd-list" id="cbDDList"></div>
+    </div>
+    <button class="cbstart" id="cbStartBtn" onclick="startChatbot()">🤖 Start Chatbot</button>
   </div>
   <div class="supd">
     <select id="statusSel">
@@ -237,6 +266,8 @@ var LEAD     = <?!= leadJson ?>;
 var POLL_MS  = <?= pollMs ?>;
 var _polling = null;
 var _tpls    = [];
+var _chatbots = [];
+var _selectedCbIdx = null;
 var _seenIds = {};
 var _firstLoad = true;
 
@@ -703,6 +734,7 @@ function checkSession(lastInboundTs) {
     irow.classList.add('disabled');
     abtn.classList.add('disabled');
     sendBtn.disabled = true;
+    document.getElementById('cbTglBtn').classList.add('disabled');
     return;
   }
 
@@ -718,12 +750,14 @@ function checkSession(lastInboundTs) {
     irow.classList.add('disabled');
     abtn.classList.add('disabled');
     sendBtn.disabled = true;
+    document.getElementById('cbTglBtn').classList.add('disabled');
   } else {
     // Session active
     bar.classList.remove('show');
     irow.classList.remove('disabled');
     abtn.classList.remove('disabled');
     sendBtn.disabled = false;
+    document.getElementById('cbTglBtn').classList.remove('disabled');
   }
 }
 
@@ -810,9 +844,42 @@ document.getElementById('sendBtn').addEventListener('click', sendMsg);
 
 /* ── Templates ── */
 document.getElementById('tglBtn').addEventListener('click', function() {
-  var p = document.getElementById('tpanel'), open = p.classList.toggle('open');
-  this.textContent = (open ? '\u25BC' : '\u25BA') + ' Use Template';
-  if (open && !_tpls.length) loadTpls();
+  var tp = document.getElementById('tpanel');
+  var cp = document.getElementById('cbpanel');
+  var isOpen = tp.classList.contains('open');
+
+  // Close chatbot panel if open
+  cp.classList.remove('open');
+  document.getElementById('cbTglBtn').classList.remove('active');
+
+  if (isOpen) {
+    tp.classList.remove('open');
+    this.classList.remove('active');
+  } else {
+    tp.classList.add('open');
+    this.classList.add('active');
+    if (!_tpls.length) loadTpls();
+  }
+});
+
+/* ── Toggle: Chatbot ── */
+document.getElementById('cbTglBtn').addEventListener('click', function() {
+  var cp = document.getElementById('cbpanel');
+  var tp = document.getElementById('tpanel');
+  var isOpen = cp.classList.contains('open');
+
+  // Close template panel if open
+  tp.classList.remove('open');
+  document.getElementById('tglBtn').classList.remove('active');
+
+  if (isOpen) {
+    cp.classList.remove('open');
+    this.classList.remove('active');
+  } else {
+    cp.classList.add('open');
+    this.classList.add('active');
+    if (!_chatbots.length) loadChatbots();
+  }
 });
 
 function loadTpls() {
@@ -931,6 +998,100 @@ function sendTpl() {
       toast('\u274C ' + e.message);
     })
     .sendWatiTemplate(LEAD.number, t.name, params);
+}
+
+/* ── Chatbots ── */
+function loadChatbots() {
+  document.getElementById('cbSearch').placeholder = '— Loading… —';
+  google.script.run
+    .withSuccessHandler(function(r) {
+      _chatbots = (r && r.chatbots) || [];
+      document.getElementById('cbSearch').placeholder = '🔍 Search chatbots...';
+      if (!_chatbots.length) toast('No chatbots found');
+      if (_chatbots.length) filterCbDD();
+    })
+    .withFailureHandler(function(e) { toast('Could not load chatbots: ' + e.message); })
+    .fetchWatiChatbots();
+}
+
+function openCbDD() {
+  if (!_chatbots.length) { loadChatbots(); return; }
+  filterCbDD();
+  document.getElementById('cbDDList').classList.add('open');
+}
+
+function filterCbDD() {
+  var query = document.getElementById('cbSearch').value.toLowerCase().trim();
+  var list = document.getElementById('cbDDList');
+  list.innerHTML = '';
+  var count = 0;
+
+  _chatbots.forEach(function(b, i) {
+    if (!query || b.name.toLowerCase().indexOf(query) >= 0) {
+      var item = document.createElement('div');
+      item.className = 'cb-dd-item' + (i === _selectedCbIdx ? ' selected' : '');
+      item.textContent = b.name;
+      item.setAttribute('data-idx', i);
+      item.onclick = function() { selectCb(parseInt(this.getAttribute('data-idx'))); };
+      list.appendChild(item);
+      count++;
+    }
+  });
+
+  if (count === 0) {
+    list.innerHTML = '<div class="cb-dd-empty">No chatbots found</div>';
+  }
+  list.classList.add('open');
+}
+
+function selectCb(idx) {
+  _selectedCbIdx = idx;
+  document.getElementById('cbSearch').value = _chatbots[idx].name;
+  document.getElementById('cbDDList').classList.remove('open');
+}
+
+// Close chatbot dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  var dd = document.getElementById('cbDropdown');
+  if (dd && !dd.contains(e.target)) {
+    document.getElementById('cbDDList').classList.remove('open');
+  }
+});
+
+function startChatbot() {
+  if (_selectedCbIdx === null) { toast('Select a chatbot first'); return; }
+
+  var bot = _chatbots[_selectedCbIdx];
+  // Confirmation — agent is handing conversation to bot
+  var confirmed = confirm(
+    'Start chatbot "' + bot.name + '"?\n\n' +
+    'This will hand the conversation to the chatbot. ' +
+    'The bot will take control of messaging this contact.'
+  );
+  if (!confirmed) return;
+
+  var btn = document.getElementById('cbStartBtn');
+  btn.disabled = true;
+  btn.textContent = 'Starting...';
+
+  google.script.run
+    .withSuccessHandler(function(r) {
+      btn.disabled = false;
+      btn.textContent = '🤖 Start Chatbot';
+      if (r && r.ok) {
+        toast('✅ Chatbot "' + bot.name + '" started');
+        _selectedCbIdx = null;
+        document.getElementById('cbSearch').value = '';
+      } else {
+        toast('❌ ' + ((r && r.error) || 'Chatbot start failed'));
+      }
+    })
+    .withFailureHandler(function(e) {
+      btn.disabled = false;
+      btn.textContent = '🤖 Start Chatbot';
+      toast('❌ ' + e.message);
+    })
+    .startWatiChatbot(LEAD.number, bot.id);
 }
 
 /* ── Status update ── */

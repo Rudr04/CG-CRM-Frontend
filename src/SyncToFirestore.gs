@@ -202,7 +202,9 @@ function onSheetEditSync(e) {
                 }
               }
 
-              if (pfColIdx >= 0) {
+              if (pfColIdx < 0) {
+                missingForPayment.push(pfHeader);
+              } else {
                 var pfValue = (affectedData[row - startRow][pfColIdx] || '').toString().trim();
                 if (pfValue === '') missingForPayment.push(pfHeader);
               }
@@ -264,7 +266,9 @@ function onSheetEditSync(e) {
               }
             }
 
-            if (reqColIdx >= 0) {
+            if (reqColIdx < 0) {
+              missingFields.push(reqHeader);
+            } else {
               var cellValue = (affectedData[row - startRow][reqColIdx] || '').toString().trim();
               if (cellValue === '') missingFields.push(reqHeader);
             }

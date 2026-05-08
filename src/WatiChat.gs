@@ -447,3 +447,84 @@ function clearAllCache() {
   CacheService.getScriptCache().remove('tplHeaderMap');
   console.log('Cache cleared');
 }
+
+// ── Fetch Chatbots (called from sidebar) ───────────────────────
+
+function fetchWatiChatbots() {
+  try {
+    var cfg = _watiCfg();
+    var url = cfg.base + cfg.tenant + '/api/v1/chatbots';
+
+    var resp = UrlFetchApp.fetch(url, {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + cfg.token, 'accept': 'application/json' },
+      muteHttpExceptions: true,
+    });
+
+    var code = resp.getResponseCode();
+    if (code !== 200) {
+      console.error('[Chat] getChatbots HTTP ' + code);
+      return { ok: false, chatbots: [], error: 'HTTP ' + code };
+    }
+
+    var body = JSON.parse(resp.getContentText());
+    // WATI may return { chatbots: [...] } or { data: [...] } — handle both
+    var bots = (body.chatbots || body.data || body || []);
+    if (!Array.isArray(bots)) bots = [];
+
+    var mapped = bots.map(function(b) {
+      return {
+        id:   b.id || b.chatbotId || '',
+        name: b.name || b.chatbotName || 'Unnamed',
+      };
+    });
+
+    return { ok: true, chatbots: mapped };
+  } catch (e) {
+    console.error('[Chat] fetchChatbots: ' + e.message);
+    return { ok: false, chatbots: [], error: e.message };
+  }
+}
+
+// ── Start Chatbot for Contact ──────────────────────────────────
+
+function startWatiChatbot(phoneNumber, chatbotId) {
+  if (!chatbotId) return { ok: false, error: 'No chatbot selected' };
+
+  try {
+    var cfg   = _watiCfg();
+    var clean = phoneNumber.toString().replace(/\D/g, '');
+    var url   = cfg.base + cfg.tenant + '/api/v1/chatbots/start'
+              + '?whatsappNumber=' + clean
+              + '&chatbotId=' + encodeURIComponent(chatbotId);
+
+    var resp = UrlFetchApp.fetch(url, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + cfg.token, 'accept': 'text/plain' },
+      payload: '',
+      muteHttpExceptions: true,
+    });
+
+    var code = resp.getResponseCode();
+    var text = resp.getContentText();
+
+    if (code === 200) {
+      console.log('[Chat] Chatbot ' + chatbotId + ' started for ' + clean);
+      return { ok: true };
+    }
+
+    // Try JSON parse for error message, fall back to raw text
+    var errMsg = 'HTTP ' + code;
+    try {
+      var body = JSON.parse(text);
+      errMsg = body.message || body.error || errMsg;
+    } catch (_) {
+      if (text) errMsg = text.substring(0, 200);
+    }
+    console.error('[Chat] startChatbot ' + code + ': ' + errMsg);
+    return { ok: false, error: errMsg };
+  } catch (e) {
+    console.error('[Chat] startChatbot: ' + e.message);
+    return { ok: false, error: e.message };
+  }
+}
