@@ -310,13 +310,13 @@ function onSheetEditSync(e) {
           }
 
           if (!isAllowed) {
-            var revertCol = (fieldName === 'cbDate') ? M.cbDate : '';
+            var revertCol = (fieldName === 'cbDate') ? M.cbDate : M.cbTime;
             if (revertCol !== undefined) {
-              sheet.getRange(row, revertCol + 1).setValue(oldValue || '');
+              sheet.getRange(row, revertCol + 1).setValue('');
             }
             try {
               SpreadsheetApp.getActiveSpreadsheet().toast(
-                'Only the assigned agent (' + (teamVal || 'none') + ') can set CB Date/Time.',
+                'Only the assigned agent ' + (teamVal || 'none') + ' can set CB Date/Time.',
                 '⚠️ Not Allowed', 5
               );
             } catch (toastErr) {
@@ -356,7 +356,7 @@ function onSheetEditSync(e) {
                 continue;
               }
             }
-
+            
             try {
               if (calEventIdVal) {
                 rescheduleCallback(sheet, row);
