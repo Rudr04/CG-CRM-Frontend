@@ -68,6 +68,10 @@ function onSheetEditSync(e) {
 
     if (startRow <= CRM.HEADER_ROW) return;
 
+    // Field-key → 0-based column index map (used by callback scheduling block).
+    // getColumnMap has internal caching; the Sheets read here is negligible.
+    var M = getColumnMap(sheet);
+
     var edits = [];
 
     // Batch-read entire affected area in ONE I/O call
@@ -284,6 +288,69 @@ function onSheetEditSync(e) {
             continue;
           }
           // Approval is valid — fall through to edits.push() below for normal sync.
+        }
+
+        // ── Callback scheduling — when cbDate or cbTime changes ──
+        // Guard: only the assigned agent (Team column) can edit CB Date/Time.
+        // On reject: revert cell, toast, skip Firestore sync (continue).
+        // On allow: create / update / cancel Calendar event, then fall through
+        //           to edits.push for normal Firestore sync.
+        if (fieldName === 'cbDate' || fieldName === 'cbTime') {
+          var teamVal = (M.team !== undefined)
+            ? (rowData[M.team] || '').toString().trim()
+            : '';
+          var editorEmail = (activeUser || triggerOwner || '').toLowerCase();
+          var isAllowed = false;
+
+          if (teamVal && teamVal !== CRM.DEFAULTS.TEAM && teamVal !== CRM.DEFAULTS.ROBO_AGENT) {
+            var agent = getAgentByEmail(editorEmail);
+            if (agent && agent.name === teamVal) {
+              isAllowed = true;
+            }
+          }
+
+          if (!isAllowed) {
+            var revertCol = (fieldName === 'cbDate') ? M.cbDate : M.cbTime;
+            if (revertCol !== undefined) {
+              sheet.getRange(row, revertCol + 1).setValue(oldValue || '');
+            }
+            try {
+              SpreadsheetApp.getActiveSpreadsheet().toast(
+                'Only the assigned agent (' + (teamVal || 'none') + ') can set CB Date/Time.',
+                '⚠️ Not Allowed', 5
+              );
+            } catch (toastErr) {
+              console.warn('[Callback] Could not show toast: ' + toastErr.message);
+            }
+            continue;
+          }
+
+          // Agent verified — schedule, reschedule, or cancel based on row state.
+          var cbDateVal = (M.cbDate !== undefined)
+            ? (rowData[M.cbDate] || '').toString().trim() : '';
+          var cbTimeVal = (M.cbTime !== undefined)
+            ? (rowData[M.cbTime] || '').toString().trim() : '';
+          var calEventIdVal = (M.calEventId !== undefined)
+            ? (rowData[M.calEventId] || '').toString().trim() : '';
+
+          if (cbDateVal && cbTimeVal) {
+            try {
+              if (calEventIdVal) {
+                rescheduleCallback(sheet, row);
+              } else {
+                scheduleCallback(sheet, row);
+              }
+            } catch (cbErr) {
+              console.error('[Callback] Error scheduling: ' + cbErr.message);
+            }
+          } else if (!cbDateVal && !cbTimeVal) {
+            try {
+              cancelCallback(sheet, row);
+            } catch (cbErr) {
+              console.error('[Callback] Error cancelling: ' + cbErr.message);
+            }
+          }
+          // One filled, one empty → wait for the other; still falls through to sync.
         }
 
         edits.push({

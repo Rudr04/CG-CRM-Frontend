@@ -100,6 +100,14 @@ CRM.STATUSES = [
   'Online MC Link Sent'
 ];
 
+CRM.CB_TIMES = [
+  '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM',
+  '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM',
+  '1:00 PM', '1:30 PM', '2:00 PM', '2:30 PM',
+  '3:00 PM', '3:30 PM', '4:00 PM', '4:30 PM',
+  '5:00 PM', '5:30 PM', '6:00 PM',
+];
+
 CRM.CONVERTED_STATUSES = ['Admission Done', 'Seat Booked'];
 
 // ── Sales Review Approval Gates ──────────────────────────────
@@ -161,6 +169,8 @@ CRM.FIELD_HEADERS = {
   status:        'Status',
   rating:        'Rating',
   cbDate:        'CB Date',
+  cbTime:        'CB Time',
+  calEventId:    'Cal Event ID',
   remark:        'Remark',
   day:           'Day',
   hours:         'Hours',
@@ -219,6 +229,9 @@ CRM.SYNC = (function() {
     rating:        { historyAction: 'rating_changed' },
     remark:        { historyAction: 'remark_added' },
     pipelineStage: { historyAction: 'stage_changed' },
+    // Callback scheduling — both must sync; presence of both triggers Calendar event
+    cbDate:        { historyAction: 'cb_date_set' },
+    cbTime:        { historyAction: 'cb_time_set' },
     // Phase 3
     salesRemark:     { historyAction: 'sales_remark_added' },
     fulfillmentStatus: { historyAction: 'fulfillment_status_changed' },

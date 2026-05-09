@@ -232,14 +232,23 @@ function authorizeScript() {
   var email = Session.getActiveUser().getEmail();
   
   if (email) {
-    // Store that this user has authorized
     var userProps = PropertiesService.getUserProperties();
     userProps.setProperty('AUTHORIZED', 'true');
     userProps.setProperty('USER_EMAIL', email);
+
+    // Touch each service to ensure all OAuth scopes are granted
+    SpreadsheetApp.getActive();                  // spreadsheets
+    DriveApp.getRootFolder();                    // drive
+    ScriptApp.getProjectTriggers();              // script.scriptapp
+    CalendarApp.getDefaultCalendar();            // calendar
+    Session.getActiveUser().getEmail();          // userinfo.email
+    // script.container.ui    → already used via getUi() above
+    // script.external_request → granted via manifest, no idle call needed
     
     ui.alert('✅ Authorized!', 
       'Script authorized for: ' + email + '\n\n' +
-      'Your edits will now be tracked with your email.',
+      'Your edits will now be tracked with your email.\n' +
+      'All permissions granted (Sheets, Drive, Calendar, Triggers).',
       ui.ButtonSet.OK);
   } else {
     ui.alert('⚠️ Authorization Issue',
