@@ -312,11 +312,11 @@ function onSheetEditSync(e) {
           if (!isAllowed) {
             var revertCol = (fieldName === 'cbDate') ? M.cbDate : M.cbTime;
             if (revertCol !== undefined) {
-              sheet.getRange(row, revertCol + 1).setValue(oldValue || '');
+              sheet.getRange(row, revertCol + 1).setValue('');
             }
             try {
               SpreadsheetApp.getActiveSpreadsheet().toast(
-                'Only the assigned agent (' + (teamVal || 'none') + ') can set CB Date/Time.',
+                'Only the assigned agent ' + (teamVal || 'none') + ' can set CB Date/Time.',
                 '⚠️ Not Allowed', 5
               );
             } catch (toastErr) {
@@ -334,6 +334,29 @@ function onSheetEditSync(e) {
             ? (rowData[M.calEventId] || '').toString().trim() : '';
 
           if (cbDateVal && cbTimeVal) {
+            var cbDateObj = sheet.getRange(row, M.cbDate + 1).getValue();
+            var cbTimeObj = sheet.getRange(row, M.cbTime + 1).getValue();
+
+            if (cbDateObj instanceof Date && cbTimeObj instanceof Date) {
+              var callbackTime = new Date(cbDateObj);
+              callbackTime.setHours(cbTimeObj.getHours(), cbTimeObj.getMinutes(), 0, 0);
+
+              if (callbackTime.getTime() <= new Date().getTime()) {
+                // Revert the field that was just edited
+                var revertCol = (fieldName === 'cbDate') ? M.cbDate : M.cbTime;
+                if (revertCol !== undefined) {
+                  sheet.getRange(row, revertCol + 1).setValue(oldValue || '');
+                }
+                try {
+                  SpreadsheetApp.getActiveSpreadsheet().toast(
+                    'Callback time must be in the future.',
+                    '⚠️ Past Time', 5
+                  );
+                } catch (toastErr) {}
+                continue;
+              }
+            }
+            
             try {
               if (calEventIdVal) {
                 rescheduleCallback(sheet, row);

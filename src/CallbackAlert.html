@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body {
+      font-family: 'Google Sans', Arial, sans-serif;
+      padding: 20px;
+      margin: 0;
+      background: #fff;
+    }
+    .header { text-align: center; margin-bottom: 16px; }
+    .header h2 { margin: 0; font-size: 18px; color: #d93025; }
+    .header .time { font-size: 14px; color: #5f6368; margin-top: 4px; }
+    .details {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+    .details .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      font-size: 14px;
+    }
+    .details .label { color: #5f6368; }
+    .details .value { font-weight: 500; color: #202124; text-align: right; max-width: 60%; }
+    .remark-box {
+      background: #fff8e1;
+      border-left: 3px solid #f9a825;
+      padding: 8px 12px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #555;
+      border-radius: 0 4px 4px 0;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+    .btn {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-call { background: #1a73e8; color: #fff; }
+    .btn-call:hover { background: #1557b0; }
+    .btn-call:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-dismiss { background: #f1f3f4; color: #5f6368; }
+    .btn-dismiss:hover { background: #e0e0e0; }
+    .status {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 13px;
+      display: none;
+    }
+    .status.success { color: #34a853; display: block; }
+    .status.error { color: #d93025; display: block; }
+    .status.loading { color: #1a73e8; display: block; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>🔔 Callback Due!</h2>
+    <div class="time">Scheduled: <?= lead.cbTime ?></div>
+  </div>
+
+  <div class="details">
+    <div class="row">
+      <span class="label">Name</span>
+      <span class="value"><?= lead.name ?></span>
+    </div>
+    <div class="row">
+      <span class="label">CGID</span>
+      <span class="value"><?= lead.cgid ?></span>
+    </div>
+    <div class="row">
+      <span class="label">Phone</span>
+      <span class="value"><?= lead.number ?></span>
+    </div>
+  </div>
+
+  <? if (lead.remark) { ?>
+  <div class="remark-box">
+    💬 <?= lead.remark ?>
+  </div>
+  <? } ?>
+
+  <div class="actions">
+    <button class="btn btn-call" id="callBtn" onclick="initiateCall()">📞 Call Now</button>
+    <button class="btn btn-dismiss" onclick="google.script.host.close()">Dismiss</button>
+  </div>
+
+  <div class="status" id="statusBox"></div>
+
+  <script>
+    var ROW = <?= lead.row ?>;
+
+    (function() {
+      try {
+        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        function beep(freq, startTime, duration) {
+          var osc = ctx.createOscillator();
+          var gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = freq;
+          gain.gain.value = 0.3;
+          osc.start(startTime);
+          osc.stop(startTime + duration);
+        }
+        beep(880, ctx.currentTime, 0.15);
+        beep(880, ctx.currentTime + 0.25, 0.15);
+        beep(1100, ctx.currentTime + 0.5, 0.3);
+      } catch (e) {
+        console.log('Audio not available');
+      }
+    })();
+
+    function initiateCall() {
+      var btn = document.getElementById('callBtn');
+      btn.disabled = true;
+      showStatus('⏳ Connecting to Smartflo...', 'loading');
+
+      google.script.run
+        .withSuccessHandler(function(r) {
+          if (r.success) {
+            showStatus('✅ ' + r.message, 'success');
+            setTimeout(function() { google.script.host.close(); }, 3000);
+          } else {
+            btn.disabled = false;
+            showStatus('❌ ' + r.message, 'error');
+          }
+        })
+        .withFailureHandler(function(e) {
+          btn.disabled = false;
+          showStatus('❌ ' + e.message, 'error');
+        })
+        .triggerC2CCall(ROW);
+    }
+
+    function showStatus(msg, type) {
+      var box = document.getElementById('statusBox');
+      box.innerHTML = msg;
+      box.className = 'status ' + type;
+    }
+  </script>
+</body>
+</html>

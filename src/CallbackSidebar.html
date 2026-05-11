@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body {
+      font-family: 'Google Sans', Arial, sans-serif;
+      padding: 16px;
+      color: #555;
+      font-size: 13px;
+    }
+    .status { margin-top: 12px; color: #888; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .dot.active { background: #34a853; }
+    .dot.idle { background: #ccc; }
+    #log { margin-top: 16px; font-size: 11px; color: #aaa; max-height: 300px; overflow-y: auto; }
+    .log-entry { padding: 2px 0; border-bottom: 1px solid #f0f0f0; }
+  </style>
+</head>
+<body>
+  <div>
+    <span class="dot active" id="statusDot"></span>
+    <strong>Callback Monitor</strong>
+  </div>
+  <div class="status" id="statusText">Checking for callbacks...</div>
+  <div id="log"></div>
+
+  <script>
+    var POLL_INTERVAL = 30000;
+    var alertedRows = {};
+
+    function poll() {
+      document.getElementById('statusDot').className = 'dot active';
+      document.getElementById('statusText').textContent = 'Checking...';
+
+      google.script.run
+        .withSuccessHandler(function(callbacks) {
+          var now = new Date().toLocaleTimeString();
+          if (callbacks && callbacks.length > 0) {
+            for (var i = 0; i < callbacks.length; i++) {
+              var cb = callbacks[i];
+              var key = cb.row + '_' + cb.cbTime;
+              if (!alertedRows[key]) {
+                alertedRows[key] = true;
+                addLog('🔔 ' + now + ' — Alert: ' + cb.name + ' (' + cb.cbTime + ')');
+                google.script.run.openCallbackAlert(cb.row);
+              }
+            }
+          }
+          document.getElementById('statusText').textContent = 'Last check: ' + now + ' — Next in 30s';
+          document.getElementById('statusDot').className = 'dot active';
+        })
+        .withFailureHandler(function(err) {
+          document.getElementById('statusText').textContent = 'Error: ' + err.message;
+          document.getElementById('statusDot').className = 'dot idle';
+          addLog('❌ ' + new Date().toLocaleTimeString() + ' — ' + err.message);
+        })
+        .getDueCallbacks();
+    }
+
+    function addLog(msg) {
+      var log = document.getElementById('log');
+      var entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.textContent = msg;
+      log.insertBefore(entry, log.firstChild);
+      while (log.children.length > 20) log.removeChild(log.lastChild);
+    }
+
+    poll();
+    setInterval(poll, POLL_INTERVAL);
+  </script>
+</body>
+</html>

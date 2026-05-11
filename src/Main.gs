@@ -43,6 +43,7 @@ function onOpen() {
       .addItem('💬 WhatsApp Chat',           'openChatSidebar')
       .addItem('☎️  Call Selected Lead',      'openCallSidebar')
       .addItem('📊 Recent Call Log',          'openCallLog')
+      .addItem('🔔 Callback Monitor',         'openCallbackPoller')
       .addSeparator()
       .addSubMenu(ui.createMenu('🔥 Firebase Whitelist')
         .addItem('➕ Add Single Number',      'addSingleToWhitelist')
@@ -67,6 +68,12 @@ function onOpen() {
         .addSeparator()
         .addItem('✓ Check Configuration',      'checkConfig'))
       .addToUi();
+
+    try {
+      openCallbackPoller();
+    } catch (pollerErr) {
+      console.warn('[Main] Could not auto-open callback poller: ' + pollerErr.message);
+    }
   }
 }
 
