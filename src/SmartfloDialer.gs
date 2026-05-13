@@ -175,6 +175,29 @@ function showMyAgentProfile() {
   }
 }
 
+function quickCall() {
+  var ui = SpreadsheetApp.getUi();
+  var sheet = SpreadsheetApp.getActiveSheet();
+
+  if (sheet.getName() !== CRM.SHEETS.DSR) {
+    ui.alert('Select a lead row on "' + CRM.SHEETS.DSR + '" first.');
+    return;
+  }
+
+  var row = sheet.getActiveRange() ? sheet.getActiveRange().getRow() : 0;
+  if (!row || row <= CRM.HEADER_ROW) {
+    ui.alert('Click on a lead row first.');
+    return;
+  }
+
+  var result = triggerC2CCall(row);
+
+  SpreadsheetApp.getActive().toast(
+    result.success ? '✅ ' + result.message : '❌ ' + result.message,
+    '📞 Call',
+    5
+  );
+}
 
 // ── Private helpers ────────────────────────────────────────────
 

@@ -249,9 +249,6 @@ function sendWatiFile(phoneNumber, fileName, base64Data, mimeType) {
 function _getTemplateData() {
   var cache = CacheService.getScriptCache();
   var cached = cache.get('tplData');
-  if (cached) {
-    try { return JSON.parse(cached); } catch(e) {}
-  }
 
   try {
     var cfg = _watiCfg();
